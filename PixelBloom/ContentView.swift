@@ -1,6 +1,7 @@
 import SwiftUI
 
 private let paper = Color(red: 0.97, green: 0.96, blue: 0.93)
+private let secondaryInk = Color(red: 0.35, green: 0.36, blue: 0.32)
 
 struct ContentView: View {
     @EnvironmentObject private var store: PaintStore
@@ -15,7 +16,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(puzzle.title).font(.headline)
                         Text(store.progress(in: puzzle) == 1 ? "Completed" : "\(Int(store.progress(in: puzzle) * 100))% colored")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(secondaryInk)
                         ProgressView(value: store.progress(in: puzzle)).accessibilityLabel("Coloring progress")
                     }
                 }
@@ -31,7 +32,7 @@ struct ContentView: View {
                     Label("A moment of color", systemImage: "leaf")
                         .font(.subheadline.weight(.semibold))
                     Text("Pick a picture. Find your rhythm.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(secondaryInk)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
             }
         } detail: {
@@ -41,6 +42,8 @@ struct ContentView: View {
                 ContentUnavailableView("Choose a picture", systemImage: "square.grid.3x3", description: Text("Your next little masterpiece is waiting."))
             }
         }
+        // The canvas uses fixed light paper colors, so its text and controls need a matching appearance.
+        .preferredColorScheme(.light)
     }
 }
 
@@ -75,14 +78,14 @@ struct ColoringView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(puzzle.title).font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text(puzzle.subtitle).font(.subheadline).foregroundStyle(.secondary)
+                    Text(puzzle.subtitle).font(.subheadline).foregroundStyle(secondaryInk)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 6) {
                     Text(store.progress(in: puzzle), format: .percent.precision(.fractionLength(0)))
                         .font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit()
                     Text("\(store.filled(in: puzzle).count) / \(puzzle.paintable.count) pixels")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(secondaryInk)
                 }
             }.padding(24)
 
@@ -111,7 +114,7 @@ struct ColoringView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text(isComplete ? "Picture complete — take a moment to enjoy it." : message)
-                        .font(.footnote).foregroundStyle(.secondary).accessibilityAddTraits(.updatesFrequently)
+                        .font(.footnote).foregroundStyle(secondaryInk).accessibilityAddTraits(.updatesFrequently)
                     Spacer()
                     Button { findHint() } label: { Label("Hint", systemImage: "lightbulb") }
                         .disabled(isComplete)
@@ -124,7 +127,7 @@ struct ColoringView: View {
                     }.padding(4)
                 }
                 Text("Match the numbers • Zoom for bigger squares • Scroll to explore")
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption2).foregroundStyle(secondaryInk)
             }.padding(24)
         }
         .background(paper)
@@ -163,7 +166,7 @@ struct ColoringView: View {
                         .frame(width: 28, height: 28).background(.white.opacity(0.92), in: Circle())
                 }.frame(width: 58, height: 54)
                 Text(paint.name).font(.caption2).foregroundStyle(.primary).lineLimit(1)
-                Text("\(remaining) left").font(.caption2).foregroundStyle(.secondary)
+                Text("\(remaining) left").font(.caption2).foregroundStyle(secondaryInk)
             }
             .padding(6)
             .background(selectedColor == paint.id ? Color.primary.opacity(0.07) : Color.clear, in: RoundedRectangle(cornerRadius: 20))
@@ -233,7 +236,7 @@ struct PixelBoard: View {
                     Rectangle().fill(filled ? (paint?.color ?? .gray) : (selectedColor == number ? (paint?.color.opacity(0.18) ?? .white) : .white))
                     if !filled {
                         Text("\(number)").font(.system(size: min(22, unit * 0.42), weight: selectedColor == number ? .bold : .regular, design: .rounded))
-                            .foregroundStyle(selectedColor == number ? Color.primary : Color.secondary)
+                            .foregroundStyle(selectedColor == number ? Color.primary : secondaryInk)
                     }
                     Rectangle().strokeBorder(hint == index ? Color.primary : Color.black.opacity(0.09), lineWidth: hint == index ? 3 : 0.5)
                 }.frame(width: unit, height: unit).contentShape(Rectangle())

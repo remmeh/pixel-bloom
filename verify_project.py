@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parent
 source = (root / 'PixelBloom/Puzzle.swift').read_text()
 puzzles = re.findall(r'Puzzle\(id: "([^"]+)".*?rows: \[(.*?)\], palette: \[(.*?)\]\)', source, re.S)
-assert len(puzzles) == 3
+assert len(puzzles) == 18
 assert len({p[0] for p in puzzles}) == len(puzzles)
 for name, raw_rows, raw_palette in puzzles:
     rows = re.findall(r'"([.0-9]+)"', raw_rows)
@@ -19,7 +19,7 @@ for name, raw_rows, raw_palette in puzzles:
     print(f'{name}: 16×16, {sum(counts.values())} paintable cells, {len(palette)} colors — OK')
 
 pbx = (root / 'PixelBloom.xcodeproj/project.pbxproj').read_text()
-ids = re.findall(r'^\s*([A-F0-9]{24}) = \{', pbx, re.M)
+ids = re.findall(r'^\s*([A-F0-9]{24})(?: /\*.*?\*/)? = \{', pbx, re.M)
 assert len(ids) == len(set(ids)), 'Duplicate project object IDs'
 references = set(re.findall(r'\b[A-F0-9]{24}\b', pbx))
 assert references == set(ids), 'Dangling project references'

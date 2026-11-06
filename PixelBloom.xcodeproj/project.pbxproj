@@ -1,45 +1,337 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
-	classes = {};
+	classes = {
+	};
 	objectVersion = 56;
 	objects = {
-		B1FC9241A06CDDF2603BE3AA = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBloomApp.swift; sourceTree = "<group>"; };
-		E578222D24CB7C5437331440 = { isa = PBXBuildFile; fileRef = B1FC9241A06CDDF2603BE3AA; };
-		ED4EDD337446DD7F7050CB59 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Puzzle.swift; sourceTree = "<group>"; };
-		514FF5EADC0CA7FFA047590F = { isa = PBXBuildFile; fileRef = ED4EDD337446DD7F7050CB59; };
-		F02556514EFE103272700159 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaintStore.swift; sourceTree = "<group>"; };
-		9C6894DCEAA7BAF39112708D = { isa = PBXBuildFile; fileRef = F02556514EFE103272700159; };
-		9727B9EED8ACD2EE46E136A0 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		2EE4CA8674056E0A7639489A = { isa = PBXBuildFile; fileRef = 9727B9EED8ACD2EE46E136A0; };
-		6DA08D05A682F8C85B49E4E8 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaintStoreTests.swift; sourceTree = "<group>"; };
-		2BBC503AF689D458BC6F8514 = { isa = PBXBuildFile; fileRef = 6DA08D05A682F8C85B49E4E8; };
-		845F65209D19F1E91A3C573D = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PixelBloom.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		9FEED0499F36FF4A8531E2EC = { isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PixelBloomTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B28B7AF69320201D1CF206EB = { isa = PBXGroup; children = (CA58875195AA86D8BE963366, 9FA83B6DF646F5D116CEE254, FBDC4F23F93125BBEEAE800C); sourceTree = "<group>"; };
-		CA58875195AA86D8BE963366 = { isa = PBXGroup; children = (B1FC9241A06CDDF2603BE3AA, ED4EDD337446DD7F7050CB59, F02556514EFE103272700159, 9727B9EED8ACD2EE46E136A0); path = PixelBloom; sourceTree = "<group>"; };
-		9FA83B6DF646F5D116CEE254 = { isa = PBXGroup; children = (6DA08D05A682F8C85B49E4E8); path = PixelBloomTests; sourceTree = "<group>"; };
-		FBDC4F23F93125BBEEAE800C = { isa = PBXGroup; children = (845F65209D19F1E91A3C573D, 9FEED0499F36FF4A8531E2EC); name = Products; sourceTree = "<group>"; };
-		28E30B7D232F9B4B78778CA2 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E578222D24CB7C5437331440, 514FF5EADC0CA7FFA047590F, 9C6894DCEAA7BAF39112708D, 2EE4CA8674056E0A7639489A); runOnlyForDeploymentPostprocessing = 0; };
-		DB8BF58B205897CD1F523426 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		3041AE76937E007EAD4D4CC7 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		58921CCCA7698AA2ABCE44D8 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (2BBC503AF689D458BC6F8514); runOnlyForDeploymentPostprocessing = 0; };
-		7887C762E6D4E39E352F8922 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		335E5C310021A3ADC4867D3C = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		D799BAE6088A90139B415FCC = { isa = PBXContainerItemProxy; containerPortal = 98F54143AB4E86B28C3AFEE0; proxyType = 1; remoteGlobalIDString = 7D1043473D55BFA90E8530D3; remoteInfo = PixelBloom; };
-		DE58E2B17C19600779694943 = { isa = PBXTargetDependency; target = 7D1043473D55BFA90E8530D3; targetProxy = D799BAE6088A90139B415FCC; };
-		7D1043473D55BFA90E8530D3 = { isa = PBXNativeTarget; buildConfigurationList = 1D5BE549778104DBF1E966E6; buildPhases = (28E30B7D232F9B4B78778CA2, DB8BF58B205897CD1F523426, 3041AE76937E007EAD4D4CC7); buildRules = (); dependencies = (); name = PixelBloom; productName = PixelBloom; productReference = 845F65209D19F1E91A3C573D; productType = "com.apple.product-type.application"; };
-		04D13FD0AA6F0197CF2C9990 = { isa = PBXNativeTarget; buildConfigurationList = AC73CDC38EB2D5076B2245FE; buildPhases = (58921CCCA7698AA2ABCE44D8, 7887C762E6D4E39E352F8922, 335E5C310021A3ADC4867D3C); buildRules = (); dependencies = (DE58E2B17C19600779694943); name = PixelBloomTests; productName = PixelBloomTests; productReference = 9FEED0499F36FF4A8531E2EC; productType = "com.apple.product-type.bundle.unit-test"; };
-		657EE81F72B04E344AD48704 = { isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; CLANG_ENABLE_MODULES = YES; ENABLE_TESTABILITY = YES; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; }; name = Debug; };
-		AA45CF0082C822F46E1F835F = { isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; CLANG_ENABLE_MODULES = YES; ENABLE_TESTABILITY = YES; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; }; name = Release; };
-		BD59A88C5EC2D65E34727A49 = { isa = XCConfigurationList; buildConfigurations = (657EE81F72B04E344AD48704, AA45CF0082C822F46E1F835F); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		79E887E2CE90C5962FE423C9 = { isa = XCBuildConfiguration; buildSettings = { PRODUCT_BUNDLE_IDENTIFIER = com.example.PixelBloom; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 2; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "Pixel Bloom"; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; MARKETING_VERSION = 1.0; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; }; name = Debug; };
-		A00081F140AF3EF4697FAB53 = { isa = XCBuildConfiguration; buildSettings = { PRODUCT_BUNDLE_IDENTIFIER = com.example.PixelBloom; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 2; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "Pixel Bloom"; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; MARKETING_VERSION = 1.0; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; }; name = Release; };
-		1D5BE549778104DBF1E966E6 = { isa = XCConfigurationList; buildConfigurations = (79E887E2CE90C5962FE423C9, A00081F140AF3EF4697FAB53); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		71265213AEA60F4DDDE8E586 = { isa = XCBuildConfiguration; buildSettings = { PRODUCT_BUNDLE_IDENTIFIER = com.example.PixelBloomTests; PRODUCT_NAME = "$(TARGET_NAME)"; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 2; CODE_SIGN_STYLE = Automatic; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PixelBloom.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PixelBloom"; BUNDLE_LOADER = "$(TEST_HOST)"; }; name = Debug; };
-		1CEEFC37665B122BEC45C550 = { isa = XCBuildConfiguration; buildSettings = { PRODUCT_BUNDLE_IDENTIFIER = com.example.PixelBloomTests; PRODUCT_NAME = "$(TARGET_NAME)"; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 2; CODE_SIGN_STYLE = Automatic; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PixelBloom.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PixelBloom"; BUNDLE_LOADER = "$(TEST_HOST)"; }; name = Release; };
-		AC73CDC38EB2D5076B2245FE = { isa = XCConfigurationList; buildConfigurations = (71265213AEA60F4DDDE8E586, 1CEEFC37665B122BEC45C550); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		98F54143AB4E86B28C3AFEE0 = { isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 1600; }; buildConfigurationList = BD59A88C5EC2D65E34727A49; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = B28B7AF69320201D1CF206EB; productRefGroup = FBDC4F23F93125BBEEAE800C; projectDirPath = ""; projectRoot = ""; targets = (7D1043473D55BFA90E8530D3, 04D13FD0AA6F0197CF2C9990); };
+
+/* Begin PBXBuildFile section */
+		A11000000000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000002 /* Assets.xcassets */; };
+		2BBC503AF689D458BC6F8514 /* PaintStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA08D05A682F8C85B49E4E8 /* PaintStoreTests.swift */; };
+		2EE4CA8674056E0A7639489A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9727B9EED8ACD2EE46E136A0 /* ContentView.swift */; };
+		514FF5EADC0CA7FFA047590F /* Puzzle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4EDD337446DD7F7050CB59 /* Puzzle.swift */; };
+		9C6894DCEAA7BAF39112708D /* PaintStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F02556514EFE103272700159 /* PaintStore.swift */; };
+		E578222D24CB7C5437331440 /* PixelBloomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FC9241A06CDDF2603BE3AA /* PixelBloomApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D799BAE6088A90139B415FCC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7D1043473D55BFA90E8530D3;
+			remoteInfo = PixelBloom;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A11000000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		6DA08D05A682F8C85B49E4E8 /* PaintStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaintStoreTests.swift; sourceTree = "<group>"; };
+		845F65209D19F1E91A3C573D /* PixelBloom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PixelBloom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9727B9EED8ACD2EE46E136A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		9FEED0499F36FF4A8531E2EC /* PixelBloomTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PixelBloomTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1FC9241A06CDDF2603BE3AA /* PixelBloomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBloomApp.swift; sourceTree = "<group>"; };
+		ED4EDD337446DD7F7050CB59 /* Puzzle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Puzzle.swift; sourceTree = "<group>"; };
+		F02556514EFE103272700159 /* PaintStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaintStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7887C762E6D4E39E352F8922 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DB8BF58B205897CD1F523426 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		9FA83B6DF646F5D116CEE254 /* PixelBloomTests */ = {
+			isa = PBXGroup;
+			children = (
+				6DA08D05A682F8C85B49E4E8 /* PaintStoreTests.swift */,
+			);
+			path = PixelBloomTests;
+			sourceTree = "<group>";
+		};
+		B28B7AF69320201D1CF206EB = {
+			isa = PBXGroup;
+			children = (
+				CA58875195AA86D8BE963366 /* PixelBloom */,
+				9FA83B6DF646F5D116CEE254 /* PixelBloomTests */,
+				FBDC4F23F93125BBEEAE800C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CA58875195AA86D8BE963366 /* PixelBloom */ = {
+			isa = PBXGroup;
+			children = (
+				B1FC9241A06CDDF2603BE3AA /* PixelBloomApp.swift */,
+				ED4EDD337446DD7F7050CB59 /* Puzzle.swift */,
+				F02556514EFE103272700159 /* PaintStore.swift */,
+				9727B9EED8ACD2EE46E136A0 /* ContentView.swift */,
+				A11000000000000000000002 /* Assets.xcassets */,
+			);
+			path = PixelBloom;
+			sourceTree = "<group>";
+		};
+		FBDC4F23F93125BBEEAE800C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				845F65209D19F1E91A3C573D /* PixelBloom.app */,
+				9FEED0499F36FF4A8531E2EC /* PixelBloomTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		04D13FD0AA6F0197CF2C9990 /* PixelBloomTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC73CDC38EB2D5076B2245FE /* Build configuration list for PBXNativeTarget "PixelBloomTests" */;
+			buildPhases = (
+				58921CCCA7698AA2ABCE44D8 /* Sources */,
+				7887C762E6D4E39E352F8922 /* Frameworks */,
+				335E5C310021A3ADC4867D3C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DE58E2B17C19600779694943 /* PBXTargetDependency */,
+			);
+			name = PixelBloomTests;
+			productName = PixelBloomTests;
+			productReference = 9FEED0499F36FF4A8531E2EC /* PixelBloomTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7D1043473D55BFA90E8530D3 /* PixelBloom */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1D5BE549778104DBF1E966E6 /* Build configuration list for PBXNativeTarget "PixelBloom" */;
+			buildPhases = (
+				28E30B7D232F9B4B78778CA2 /* Sources */,
+				DB8BF58B205897CD1F523426 /* Frameworks */,
+				3041AE76937E007EAD4D4CC7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PixelBloom;
+			productName = PixelBloom;
+			productReference = 845F65209D19F1E91A3C573D /* PixelBloom.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98F54143AB4E86B28C3AFEE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = BD59A88C5EC2D65E34727A49 /* Build configuration list for PBXProject "PixelBloom" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B28B7AF69320201D1CF206EB;
+			productRefGroup = FBDC4F23F93125BBEEAE800C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7D1043473D55BFA90E8530D3 /* PixelBloom */,
+				04D13FD0AA6F0197CF2C9990 /* PixelBloomTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3041AE76937E007EAD4D4CC7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A11000000000000000000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		335E5C310021A3ADC4867D3C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		28E30B7D232F9B4B78778CA2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E578222D24CB7C5437331440 /* PixelBloomApp.swift in Sources */,
+				514FF5EADC0CA7FFA047590F /* Puzzle.swift in Sources */,
+				9C6894DCEAA7BAF39112708D /* PaintStore.swift in Sources */,
+				2EE4CA8674056E0A7639489A /* ContentView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		58921CCCA7698AA2ABCE44D8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2BBC503AF689D458BC6F8514 /* PaintStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DE58E2B17C19600779694943 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7D1043473D55BFA90E8530D3 /* PixelBloom */;
+			targetProxy = D799BAE6088A90139B415FCC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1CEEFC37665B122BEC45C550 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PixelBloomTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = 2;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PixelBloom.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PixelBloom";
+			};
+			name = Release;
+		};
+		657EE81F72B04E344AD48704 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		71265213AEA60F4DDDE8E586 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PixelBloomTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = 2;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PixelBloom.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PixelBloom";
+			};
+			name = Debug;
+		};
+		79E887E2CE90C5962FE423C9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XF9NJRJD3B;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Pixel Bloom";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.remmeh.PixelBloom;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		A00081F140AF3EF4697FAB53 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XF9NJRJD3B;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Pixel Bloom";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.remmeh.PixelBloom;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		AA45CF0082C822F46E1F835F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_TESTABILITY = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1D5BE549778104DBF1E966E6 /* Build configuration list for PBXNativeTarget "PixelBloom" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				79E887E2CE90C5962FE423C9 /* Debug */,
+				A00081F140AF3EF4697FAB53 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC73CDC38EB2D5076B2245FE /* Build configuration list for PBXNativeTarget "PixelBloomTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71265213AEA60F4DDDE8E586 /* Debug */,
+				1CEEFC37665B122BEC45C550 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BD59A88C5EC2D65E34727A49 /* Build configuration list for PBXProject "PixelBloom" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				657EE81F72B04E344AD48704 /* Debug */,
+				AA45CF0082C822F46E1F835F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
 	};
-	rootObject = 98F54143AB4E86B28C3AFEE0;
+	rootObject = 98F54143AB4E86B28C3AFEE0 /* Project object */;
 }

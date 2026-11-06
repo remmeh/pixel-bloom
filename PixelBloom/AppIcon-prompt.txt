@@ -1,0 +1,3 @@
+Generated with the built-in image generation tool.
+
+Use case: logo-brand. Asset type: 1024x1024 iOS app icon for Pixel Bloom, a cozy pixel-art color-by-number game. Create a cute smiling pixel flower, chunky coral pink square petals, warm golden center with two tiny dark eyes and a friendly smile, short sage green stem and two leaves. Warm pale cream full-bleed background matching a paper coloring canvas. Clean crisp pixel shapes, charming restrained colors, very readable silhouette at small icon size. Centered flower fills about 75% of square, generous safe margins. Flat polished illustration, no text, no watermark, no outer frame, no rounded corners, fully opaque square image.
