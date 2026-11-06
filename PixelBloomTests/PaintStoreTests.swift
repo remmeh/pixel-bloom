@@ -26,6 +26,7 @@ final class PaintStoreTests: XCTestCase {
     func testOnlyMatchingUnfilledCellsCanBePainted() {
         withDefaults { defaults in
             let store = PaintStore(defaults: defaults)
+            defer { store.flushPendingSaves() }
             let puzzle = Puzzle.all[0]
             let index = puzzle.cells.firstIndex(of: 1)!
             XCTAssertFalse(store.paint(index, color: 2, in: puzzle))
@@ -46,9 +47,11 @@ final class PaintStoreTests: XCTestCase {
                 let index = puzzle.paintable.min()!
                 store.paint(index, color: puzzle.cells[index], in: puzzle)
             }
+            store.flushPendingSaves()
             let reloaded = PaintStore(defaults: defaults)
             XCTAssertEqual(reloaded.filled(in: Puzzle.all[0]).count, 1)
             reloaded.reset(Puzzle.all[0])
+            reloaded.flushPendingSaves()
             let afterReset = PaintStore(defaults: defaults)
             XCTAssertTrue(afterReset.filled(in: Puzzle.all[0]).isEmpty)
             XCTAssertEqual(afterReset.filled(in: Puzzle.all[1]).count, 1)
@@ -63,6 +66,28 @@ final class PaintStoreTests: XCTestCase {
             for index in puzzle.paintable { store.paint(index, color: puzzle.cells[index], in: puzzle) }
             XCTAssertEqual(store.progress(in: puzzle), 1)
             for color in puzzle.palette { XCTAssertEqual(store.remaining(color.id, in: puzzle), 0) }
+            store.flushPendingSaves()
+        }
+    }
+
+    @MainActor
+    func testColorCountsFollowPaintingAndReset() {
+        withDefaults { defaults in
+            let store = PaintStore(defaults: defaults)
+            let puzzle = Puzzle.all[0]
+            for color in puzzle.palette {
+                let indices = puzzle.cells.indices.filter { puzzle.cells[$0] == color.id }
+                XCTAssertEqual(puzzle.cellsByColor[color.id], Set(indices))
+                XCTAssertEqual(store.remaining(color.id, in: puzzle), indices.count)
+                XCTAssertTrue(store.paint(indices[0], color: color.id, in: puzzle))
+                XCTAssertEqual(store.remaining(color.id, in: puzzle), indices.count - 1)
+            }
+            store.reset(puzzle)
+            for color in puzzle.palette {
+                XCTAssertEqual(store.remaining(color.id, in: puzzle), puzzle.cellsByColor[color.id]?.count)
+            }
+            store.flushPendingSaves()
+            XCTAssertTrue(PaintStore(defaults: defaults).filled(in: puzzle).isEmpty)
         }
     }
 

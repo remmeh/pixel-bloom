@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct PaintColor: Identifiable {
+struct PaintColor: Identifiable, Equatable {
     let id: Int
     let name: String
     let hex: UInt32
@@ -11,18 +11,37 @@ struct PaintColor: Identifiable {
     }
 }
 
-struct Puzzle: Identifiable {
+struct Puzzle: Identifiable, Equatable {
     let id: String
     let title: String
     let subtitle: String
     let symbol: String
     let rows: [String]
     let palette: [PaintColor]
-    var width: Int { rows[0].count }
-    var height: Int { rows.count }
-    // A dot is empty canvas. Digits refer to the numbered palette.
-    var cells: [Int] { rows.flatMap { $0.map { $0.wholeNumberValue ?? 0 } } }
-    var paintable: Set<Int> { Set(cells.indices.filter { cells[$0] != 0 }) }
+    let width: Int
+    let height: Int
+    let cells: [Int]
+    let paintable: Set<Int>
+    let cellsByColor: [Int: Set<Int>]
+    let colorsByNumber: [Int: PaintColor]
+
+    init(id: String, title: String, subtitle: String, symbol: String, rows: [String], palette: [PaintColor]) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.symbol = symbol
+        self.rows = rows
+        self.palette = palette
+        width = rows.first?.count ?? 0
+        height = rows.count
+        // Parse immutable artwork once, rather than on every view update.
+        let parsed = rows.flatMap { $0.map { $0.wholeNumberValue ?? 0 } }
+        cells = parsed
+        paintable = Set(parsed.indices.filter { parsed[$0] > 0 })
+        cellsByColor = Dictionary(grouping: parsed.indices.filter { parsed[$0] > 0 }, by: { parsed[$0] })
+            .mapValues { Set($0) }
+        colorsByNumber = Dictionary(uniqueKeysWithValues: palette.map { ($0.id, $0) })
+    }
 
     static let all: [Puzzle] = [
         Puzzle(id: "bloom", title: "Little bloom", subtitle: "A little color, a little calm.", symbol: "camera.macro", rows: [
