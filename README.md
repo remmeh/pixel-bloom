@@ -15,7 +15,7 @@ A native SwiftUI color-by-number app for iPadOS 17 and later. No third-party dep
 - Eighteen original 16×16 pictures in a separate **Little pictures** section, retaining their saved progress.
 - A sidebar with titles and progress only, so the finished artwork stays a surprise.
 - Numbered colors with remaining-square counts and selected-color highlighting.
-- Tap or drag to fill matching cells; incorrect colors never overwrite a square. Switch to **Move** to pan, then **Paint** to keep coloring. Fast strokes fill intervening matching cells, including across tile boundaries.
+- Tap or drag to fill matching cells; incorrect colors never overwrite a square. Use one finger to paint, three fingers to pan, and pinch to zoom. Fast strokes fill intervening matching cells, including across tile boundaries.
 - Pinch zoom, zoom buttons, and a scrollable board for precise coloring. Detailed scenes support 100–1000% zoom and an Overview button.
 - Tiled canvas rendering and background saves to keep large pictures responsive.
 - Hints that highlight and scroll to an unfinished cell.

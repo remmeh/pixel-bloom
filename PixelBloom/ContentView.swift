@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 private let paper = Color(red: 0.97, green: 0.96, blue: 0.93)
 private let secondaryInk = Color(red: 0.35, green: 0.36, blue: 0.32)
@@ -71,7 +72,6 @@ struct ColoringView: View {
     let puzzle: Puzzle
     @EnvironmentObject private var store: PaintStore
     @State private var selectedColor = 1
-    @State private var isMoving = false
     @State private var zoom: CGFloat
     @GestureState private var pinchScale: CGFloat = 1
     private var maximumZoom: CGFloat { puzzle.width > 16 ? 10 : 3 }
@@ -103,13 +103,8 @@ struct ColoringView: View {
             }.padding(24)
 
             HStack {
-                Picker("Canvas mode", selection: $isMoving) {
-                    Text("Paint").tag(false)
-                    Text("Move").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 160)
-                .accessibilityHint("Paint to drag across matching cells. Move to pan around the canvas.")
+                Label("Drag to color", systemImage: "hand.draw")
+                    .font(.subheadline)
                 Spacer()
                 Button { zoom = max(1, zoom - 0.5) } label: { Image(systemName: "minus.magnifyingglass") }
                     .disabled(zoom <= 1).accessibilityLabel("Zoom out")
@@ -123,7 +118,7 @@ struct ColoringView: View {
             }.buttonStyle(.bordered).padding(.horizontal, 24).padding(.bottom, 12)
 
             PixelBoard(puzzle: puzzle, filled: store.filled(in: puzzle), selectedColor: selectedColor,
-                       zoom: effectiveZoom, isMoving: isMoving, isPinching: pinchScale != 1, hint: $hint) { indices in
+                       zoom: effectiveZoom, isPinching: pinchScale != 1, hint: $hint) { indices in
                 if store.paint(indices, color: selectedColor, in: puzzle) > 0 {
                     hint = nil
                     message = isComplete ? "Your picture is complete. Beautifully done!" : "Nice! Keep finding \(selectedColor)s."
@@ -154,7 +149,7 @@ struct ColoringView: View {
                         }
                     }.padding(4)
                 }
-                Text("Drag to color • Move to pan • Pinch to zoom")
+                Text("One finger to color • Three fingers to move • Pinch to zoom")
                     .font(.caption2).foregroundStyle(secondaryInk)
             }.padding(24)
         }
@@ -227,11 +222,9 @@ struct PixelBoard: View {
     let filled: Set<Int>
     let selectedColor: Int
     let zoom: CGFloat
-    let isMoving: Bool
     let isPinching: Bool
     @Binding var hint: Int?
     let onPaint: ([Int]) -> Void
-    @State private var lastPaintPoint: CGPoint?
 
     var body: some View {
         GeometryReader { geometry in
@@ -253,35 +246,16 @@ struct PixelBoard: View {
                         }
                     }
                     .frame(width: CGFloat(puzzle.width) * unit)
-                    .contentShape(Rectangle())
-                    .onTapGesture { location in
-                        guard !isMoving, !isPinching else { return }
-                        onPaint(puzzle.strokeIndices(from: location, to: location, unit: unit))
+                    .background {
+                        CanvasTouchInput(isPinching: isPinching) { start, end in
+                            onPaint(puzzle.strokeIndices(from: start, to: end, unit: unit))
+                        }
+                        .allowsHitTesting(false)
                     }
-                    .highPriorityGesture(
-                        DragGesture(minimumDistance: 2)
-                            .onChanged { value in
-                                guard !isPinching else { lastPaintPoint = nil; return }
-                                let start = lastPaintPoint ?? value.startLocation
-                                lastPaintPoint = value.location
-                                onPaint(puzzle.strokeIndices(from: start, to: value.location, unit: unit))
-                            }
-                            .onEnded { value in
-                                if !isPinching {
-                                    onPaint(puzzle.strokeIndices(from: lastPaintPoint ?? value.startLocation,
-                                                                to: value.location, unit: unit))
-                                }
-                                lastPaintPoint = nil
-                            },
-                        including: isMoving ? .none : .all
-                    )
                     .padding(24)
                     .frame(minWidth: geometry.size.width, minHeight: geometry.size.height)
                 }
-                .scrollDisabled(!isMoving)
                 .defaultScrollAnchor(.center)
-                .onChange(of: isMoving) { _, _ in lastPaintPoint = nil }
-                .onChange(of: isPinching) { _, _ in lastPaintPoint = nil }
                 .onChange(of: hint) { _, index in
                     if let index {
                         withAnimation { proxy.scrollTo(puzzle.tileID(containing: index), anchor: .center) }
@@ -351,6 +325,150 @@ private struct PixelTile: View, Equatable {
                 }
                 .accessibilityHint(filled.contains(index) ? "Already colored" : "Select color \(puzzle.cells[index]), then activate to fill")
             }
+        }
+    }
+}
+
+
+// UIKit exposes touch-count limits, allowing the existing SwiftUI scroll view
+// to pan with three fingers while a separate recognizer paints with one.
+struct CanvasTouchInput: UIViewRepresentable {
+    let isPinching: Bool
+    let onStroke: (CGPoint, CGPoint) -> Void
+
+    func makeUIView(context: Context) -> CanvasTouchView {
+        CanvasTouchView()
+    }
+
+    func updateUIView(_ view: CanvasTouchView, context: Context) {
+        view.onStroke = onStroke
+        view.isPinching = isPinching
+        view.connectToScrollView()
+    }
+
+    static func dismantleUIView(_ view: CanvasTouchView, coordinator: ()) {
+        view.disconnectFromScrollView()
+    }
+}
+
+final class CanvasTouchView: UIView, UIGestureRecognizerDelegate {
+    var onStroke: (CGPoint, CGPoint) -> Void = { _, _ in }
+    var isPinching = false {
+        didSet { if isPinching { lastPoint = nil } }
+    }
+    private(set) weak var connectedScrollView: UIScrollView?
+    private var previousMinimumTouches = 1
+    private var lastPoint: CGPoint?
+    private(set) lazy var paintPan: UIPanGestureRecognizer = {
+        let gesture = UIPanGestureRecognizer(target: self, action: #selector(paintDragged(_:)))
+        gesture.minimumNumberOfTouches = 1
+        gesture.maximumNumberOfTouches = 1
+        gesture.cancelsTouchesInView = false
+        gesture.delegate = self
+        return gesture
+    }()
+    private(set) lazy var paintTap: UITapGestureRecognizer = {
+        let gesture = UITapGestureRecognizer(target: self, action: #selector(paintTapped(_:)))
+        gesture.numberOfTouchesRequired = 1
+        gesture.cancelsTouchesInView = false
+        gesture.delegate = self
+        gesture.require(toFail: paintPan)
+        return gesture
+    }()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        accessibilityElementsHidden = true
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        connectToScrollView()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            disconnectFromScrollView()
+        } else {
+            connectToScrollView()
+            // SwiftUI may finish inserting the background after this callback.
+            DispatchQueue.main.async { [weak self] in self?.connectToScrollView() }
+        }
+    }
+
+    func connectToScrollView() {
+        var ancestor = superview
+        while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
+        guard let scrollView = ancestor as? UIScrollView else {
+            disconnectFromScrollView()
+            return
+        }
+        guard connectedScrollView !== scrollView else { return }
+        disconnectFromScrollView()
+        connectedScrollView = scrollView
+        previousMinimumTouches = scrollView.panGestureRecognizer.minimumNumberOfTouches
+        scrollView.panGestureRecognizer.minimumNumberOfTouches = 3
+        scrollView.addGestureRecognizer(paintPan)
+        scrollView.addGestureRecognizer(paintTap)
+    }
+
+    func disconnectFromScrollView() {
+        guard let scrollView = connectedScrollView else { return }
+        scrollView.panGestureRecognizer.minimumNumberOfTouches = previousMinimumTouches
+        scrollView.removeGestureRecognizer(paintPan)
+        scrollView.removeGestureRecognizer(paintTap)
+        connectedScrollView = nil
+        lastPoint = nil
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        // The recognizers live on the scroll view, but only paint inside the grid.
+        bounds.contains(touch.location(in: self)) && !isPinching && !UIAccessibility.isVoiceOverRunning
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        // Let three-finger scrolling and the parent's pinch gesture take over.
+        gestureRecognizer === paintPan || other === paintPan
+    }
+
+    @objc private func paintTapped(_ gesture: UITapGestureRecognizer) {
+        guard gesture.state == .ended, !isPinching else { return }
+        let point = gesture.location(in: self)
+        onStroke(point, point)
+    }
+
+    @objc private func paintDragged(_ gesture: UIPanGestureRecognizer) {
+        let point = gesture.location(in: self)
+        let translation = gesture.translation(in: self)
+        handlePaintPan(state: gesture.state, touches: gesture.numberOfTouches, point: point,
+                       start: CGPoint(x: point.x - translation.x, y: point.y - translation.y))
+    }
+
+    // Shared with tests to verify that a second touch or cancellation ends the
+    // stroke, without joining it to the next one-finger stroke.
+    func handlePaintPan(state: UIGestureRecognizer.State, touches: Int, point: CGPoint, start: CGPoint) {
+        guard !isPinching, touches <= 1 else { lastPoint = nil; return }
+        switch state {
+        case .began:
+            guard touches == 1 else { return }
+            lastPoint = point
+            onStroke(start, point)
+        case .changed:
+            guard touches == 1, let previous = lastPoint else { return }
+            lastPoint = point
+            onStroke(previous, point)
+        case .ended:
+            if let previous = lastPoint { onStroke(previous, point) }
+            lastPoint = nil
+        case .cancelled, .failed:
+            lastPoint = nil
+        default:
+            break
         }
     }
 }

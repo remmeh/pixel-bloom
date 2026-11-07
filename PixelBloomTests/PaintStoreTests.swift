@@ -1,7 +1,76 @@
 import XCTest
+import SwiftUI
+import UIKit
 @testable import PixelBloom
 
 final class PaintStoreTests: XCTestCase {
+    @MainActor
+    func testCanvasRecognizersSeparatePaintingFromThreeFingerScrolling() {
+        let scrollView = UIScrollView()
+        let originalTouches = scrollView.panGestureRecognizer.minimumNumberOfTouches
+        let input = CanvasTouchView()
+        scrollView.addSubview(input)
+        XCTAssertTrue(input.connectedScrollView === scrollView)
+        XCTAssertEqual(scrollView.panGestureRecognizer.minimumNumberOfTouches, 3)
+        XCTAssertEqual(input.paintPan.minimumNumberOfTouches, 1)
+        XCTAssertEqual(input.paintPan.maximumNumberOfTouches, 1)
+        XCTAssertEqual(input.paintTap.numberOfTouchesRequired, 1)
+        input.removeFromSuperview()
+        XCTAssertNil(input.connectedScrollView)
+        XCTAssertEqual(scrollView.panGestureRecognizer.minimumNumberOfTouches, originalTouches)
+        XCTAssertFalse(scrollView.gestureRecognizers?.contains(input.paintPan) ?? true)
+    }
+
+    @MainActor
+    func testSecondFingerAndPinchDoNotContinuePaintStroke() {
+        let input = CanvasTouchView()
+        var segments: [(CGPoint, CGPoint)] = []
+        input.onStroke = { segments.append(($0, $1)) }
+        let first = CGPoint(x: 5, y: 5)
+        let second = CGPoint(x: 25, y: 5)
+        input.handlePaintPan(state: .began, touches: 1, point: first, start: .zero)
+        input.handlePaintPan(state: .changed, touches: 1, point: second, start: .zero)
+        XCTAssertEqual(segments.count, 2)
+        XCTAssertEqual(segments[1].0, first)
+        input.handlePaintPan(state: .changed, touches: 2, point: second, start: .zero)
+        input.handlePaintPan(state: .changed, touches: 1, point: second, start: .zero)
+        input.handlePaintPan(state: .ended, touches: 0, point: second, start: .zero)
+        XCTAssertEqual(segments.count, 2)
+        input.handlePaintPan(state: .began, touches: 1, point: first, start: .zero)
+        input.isPinching = true
+        input.handlePaintPan(state: .changed, touches: 1, point: second, start: .zero)
+        input.isPinching = false
+        input.handlePaintPan(state: .ended, touches: 0, point: second, start: .zero)
+        XCTAssertEqual(segments.count, 3)
+        input.handlePaintPan(state: .began, touches: 1, point: first, start: first)
+        input.handlePaintPan(state: .cancelled, touches: 0, point: first, start: first)
+        input.handlePaintPan(state: .ended, touches: 0, point: second, start: first)
+        XCTAssertEqual(segments.count, 4)
+    }
+
+    @MainActor
+    func testTouchBridgeConnectsInsideSwiftUIBoard() async {
+        let board = PixelBoard(puzzle: Puzzle.detailed[0], filled: [], selectedColor: 1,
+                               zoom: 3, isPinching: false, hint: .constant(nil), onPaint: { _ in })
+        let host = UIHostingController(rootView: board)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 900, height: 600))
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+        host.view.layoutIfNeeded()
+        let rendered = expectation(description: "SwiftUI inserts the touch bridge")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { rendered.fulfill() }
+        await fulfillment(of: [rendered], timeout: 2)
+        func findInput(_ view: UIView) -> CanvasTouchView? {
+            if let input = view as? CanvasTouchView { return input }
+            return view.subviews.lazy.compactMap { findInput($0) }.first
+        }
+        let input = findInput(host.view)
+        XCTAssertNotNil(input)
+        XCTAssertNotNil(input?.connectedScrollView)
+        XCTAssertEqual(input?.connectedScrollView?.panGestureRecognizer.minimumNumberOfTouches, 3)
+    }
+
     @MainActor
     private func withDefaults(_ body: (UserDefaults) throws -> Void) rethrows {
         let suite = "PixelBloomTests.\(UUID().uuidString)"
