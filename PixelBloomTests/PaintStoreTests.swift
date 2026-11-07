@@ -1,9 +1,40 @@
 import XCTest
 import SwiftUI
 import UIKit
+import AVFoundation
 @testable import PixelBloom
 
 final class PaintStoreTests: XCTestCase {
+    func testSoundFeedbackSkipsInvalidPaintingAndPacesSwipes() {
+        var feedback = ColoringSoundFeedback()
+        XCTAssertNil(feedback.painted(added: 0, remaining: 10, interaction: .tap, now: 0))
+        XCTAssertEqual(feedback.painted(added: 1, remaining: 9, interaction: .tap, now: 0), .pixel)
+        XCTAssertNil(feedback.painted(added: 5, remaining: 4, interaction: .drag, now: 0.01))
+        XCTAssertEqual(feedback.painted(added: 2, remaining: 2, interaction: .drag, now: 0.07), .swipe)
+        // A completed color takes priority even within the swipe throttle interval.
+        XCTAssertEqual(feedback.painted(added: 2, remaining: 0, interaction: .drag, now: 0.08), .colorCompleted)
+        XCTAssertNil(feedback.painted(added: 0, remaining: 0, interaction: .drag, now: 0.09))
+        XCTAssertNil(feedback.painted(added: 1, remaining: 8, interaction: .drag, now: 0.2))
+        XCTAssertEqual(feedback.painted(added: 1, remaining: 7, interaction: .drag, now: 0.5), .swipe)
+        XCTAssertNil(feedback.selected(from: 2, to: 2))
+        XCTAssertEqual(feedback.selected(from: 2, to: 3), .colorSelected)
+    }
+
+    func testGeneratedSoundClipsDecodeAndAreDistinct() throws {
+        var clips: Set<Data> = []
+        for effect in ColoringSound.allCases {
+            let data = ColoringSoundClip.wav(for: effect)
+            XCTAssertEqual(String(data: data.prefix(4), encoding: .utf8), "RIFF")
+            let player = try AVAudioPlayer(data: data)
+            XCTAssertEqual(player.numberOfChannels, 1)
+            XCTAssertGreaterThan(player.duration, 0.03)
+            XCTAssertLessThan(player.duration, 0.6)
+            XCTAssertTrue(data.dropFirst(44).contains(where: { $0 != 0 }))
+            clips.insert(data)
+        }
+        XCTAssertEqual(clips.count, ColoringSound.allCases.count)
+    }
+
     @MainActor
     func testCanvasRecognizersSeparatePaintingFromThreeFingerScrolling() {
         let scrollView = UIScrollView()
@@ -25,7 +56,7 @@ final class PaintStoreTests: XCTestCase {
     func testSecondFingerAndPinchDoNotContinuePaintStroke() {
         let input = CanvasTouchView()
         var segments: [(CGPoint, CGPoint)] = []
-        input.onStroke = { segments.append(($0, $1)) }
+        input.onStroke = { start, end, _ in segments.append((start, end)) }
         let first = CGPoint(x: 5, y: 5)
         let second = CGPoint(x: 25, y: 5)
         input.handlePaintPan(state: .began, touches: 1, point: first, start: .zero)
@@ -51,7 +82,7 @@ final class PaintStoreTests: XCTestCase {
     @MainActor
     func testTouchBridgeConnectsInsideSwiftUIBoard() async {
         let board = PixelBoard(puzzle: Puzzle.detailed[0], filled: [], selectedColor: 1,
-                               zoom: 3, isPinching: false, hint: .constant(nil), onPaint: { _ in })
+                               zoom: 3, isPinching: false, hint: .constant(nil), onPaint: { _, _ in })
         let host = UIHostingController(rootView: board)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 900, height: 600))
         window.rootViewController = host

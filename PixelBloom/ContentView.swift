@@ -72,6 +72,7 @@ struct ColoringView: View {
     let puzzle: Puzzle
     @EnvironmentObject private var store: PaintStore
     @State private var selectedColor = 1
+    @AppStorage("pixelbloom.sound.enabled") private var soundEnabled = true
     @State private var zoom: CGFloat
     @GestureState private var pinchScale: CGFloat = 1
     private var maximumZoom: CGFloat { puzzle.width > 16 ? 10 : 3 }
@@ -118,8 +119,13 @@ struct ColoringView: View {
             }.buttonStyle(.bordered).padding(.horizontal, 24).padding(.bottom, 12)
 
             PixelBoard(puzzle: puzzle, filled: store.filled(in: puzzle), selectedColor: selectedColor,
-                       zoom: effectiveZoom, isPinching: pinchScale != 1, hint: $hint) { indices in
-                if store.paint(indices, color: selectedColor, in: puzzle) > 0 {
+                       zoom: effectiveZoom, isPinching: pinchScale != 1, hint: $hint) { indices, interaction in
+                let added = store.paint(indices, color: selectedColor, in: puzzle)
+                if added > 0 {
+                    if soundEnabled {
+                        ColoringAudio.shared.painted(added: added, remaining: store.remaining(selectedColor, in: puzzle),
+                                                     interaction: interaction)
+                    }
                     hint = nil
                     message = isComplete ? "Your picture is complete. Beautifully done!" : "Nice! Keep finding \(selectedColor)s."
                 } else if indices.count == 1, let index = indices.first, !store.filled(in: puzzle).contains(index) {
@@ -158,10 +164,19 @@ struct ColoringView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                Button(soundEnabled ? "Mute sounds" : "Enable sounds",
+                       systemImage: soundEnabled ? "speaker.wave.2" : "speaker.slash") {
+                    soundEnabled.toggle()
+                    if !soundEnabled { ColoringAudio.shared.stop() }
+                }
+                .accessibilityValue(soundEnabled ? "Sounds on" : "Sounds off")
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button("Start over", systemImage: "arrow.counterclockwise") { showReset = true }
                     .disabled(store.filled(in: puzzle).isEmpty)
             }
         }
+        .task { if soundEnabled { ColoringAudio.shared.prepare() } }
         .confirmationDialog("Start this picture over?", isPresented: $showReset, titleVisibility: .visible) {
             Button("Erase this picture’s progress", role: .destructive) {
                 store.reset(puzzle)
@@ -176,6 +191,7 @@ struct ColoringView: View {
     private func paletteButton(_ paint: PaintColor) -> some View {
         let remaining = store.remaining(paint.id, in: puzzle)
         return Button {
+            if soundEnabled { ColoringAudio.shared.selected(from: selectedColor, to: paint.id) }
             selectedColor = paint.id
             hint = nil
             message = remaining == 0 ? "All \(paint.name.lowercased()) squares are done!" : "Find \(remaining) squares marked \(paint.id)."
@@ -203,6 +219,7 @@ struct ColoringView: View {
     private func findHint() {
         var candidates = puzzle.cells.indices.filter { puzzle.cells[$0] == selectedColor && !store.filled(in: puzzle).contains($0) }
         if candidates.isEmpty, let next = puzzle.cells.indices.first(where: { puzzle.cells[$0] > 0 && !store.filled(in: puzzle).contains($0) }) {
+            if soundEnabled { ColoringAudio.shared.selected(from: selectedColor, to: puzzle.cells[next]) }
             selectedColor = puzzle.cells[next]
             candidates = [next]
         }
@@ -224,7 +241,7 @@ struct PixelBoard: View {
     let zoom: CGFloat
     let isPinching: Bool
     @Binding var hint: Int?
-    let onPaint: ([Int]) -> Void
+    let onPaint: ([Int], PaintInteraction) -> Void
 
     var body: some View {
         GeometryReader { geometry in
@@ -240,15 +257,15 @@ struct PixelBoard: View {
                             PixelTile(puzzle: puzzle, tile: tile, filled: filled.intersection(tile.indices),
                                       selectedColor: selectedColor, unit: unit,
                                       hint: hint.flatMap { tile.indices.contains($0) ? $0 : nil },
-                                      onPaint: { onPaint([$0]) })
+                                      onPaint: { onPaint([$0], .tap) })
                                 .equatable()
                                 .id(tile.id)
                         }
                     }
                     .frame(width: CGFloat(puzzle.width) * unit)
                     .background {
-                        CanvasTouchInput(isPinching: isPinching) { start, end in
-                            onPaint(puzzle.strokeIndices(from: start, to: end, unit: unit))
+                        CanvasTouchInput(isPinching: isPinching) { start, end, interaction in
+                            onPaint(puzzle.strokeIndices(from: start, to: end, unit: unit), interaction)
                         }
                         .allowsHitTesting(false)
                     }
@@ -334,7 +351,7 @@ private struct PixelTile: View, Equatable {
 // to pan with three fingers while a separate recognizer paints with one.
 struct CanvasTouchInput: UIViewRepresentable {
     let isPinching: Bool
-    let onStroke: (CGPoint, CGPoint) -> Void
+    let onStroke: (CGPoint, CGPoint, PaintInteraction) -> Void
 
     func makeUIView(context: Context) -> CanvasTouchView {
         CanvasTouchView()
@@ -352,7 +369,7 @@ struct CanvasTouchInput: UIViewRepresentable {
 }
 
 final class CanvasTouchView: UIView, UIGestureRecognizerDelegate {
-    var onStroke: (CGPoint, CGPoint) -> Void = { _, _ in }
+    var onStroke: (CGPoint, CGPoint, PaintInteraction) -> Void = { _, _, _ in }
     var isPinching = false {
         didSet { if isPinching { lastPoint = nil } }
     }
@@ -439,7 +456,7 @@ final class CanvasTouchView: UIView, UIGestureRecognizerDelegate {
     @objc private func paintTapped(_ gesture: UITapGestureRecognizer) {
         guard gesture.state == .ended, !isPinching else { return }
         let point = gesture.location(in: self)
-        onStroke(point, point)
+        onStroke(point, point, .tap)
     }
 
     @objc private func paintDragged(_ gesture: UIPanGestureRecognizer) {
@@ -457,13 +474,13 @@ final class CanvasTouchView: UIView, UIGestureRecognizerDelegate {
         case .began:
             guard touches == 1 else { return }
             lastPoint = point
-            onStroke(start, point)
+            onStroke(start, point, .drag)
         case .changed:
             guard touches == 1, let previous = lastPoint else { return }
             lastPoint = point
-            onStroke(previous, point)
+            onStroke(previous, point, .drag)
         case .ended:
-            if let previous = lastPoint { onStroke(previous, point) }
+            if let previous = lastPoint { onStroke(previous, point, .drag) }
             lastPoint = nil
         case .cancelled, .failed:
             lastPoint = nil

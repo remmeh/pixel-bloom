@@ -8,7 +8,10 @@ struct PixelBloomApp: App {
         WindowGroup {
             ContentView().environmentObject(store).tint(Color(red: 0.36, green: 0.43, blue: 0.34))
                 .onChange(of: scenePhase) { _, phase in
-                    if phase != .active { store.flushPendingSaves() }
+                    if phase != .active {
+                        store.flushPendingSaves()
+                        ColoringAudio.shared.stop()
+                    }
                 }
         }
     }

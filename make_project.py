@@ -12,7 +12,7 @@ def add(name, body):
 def refs(names):
     return '(' + ', '.join(uid(n) for n in names) + ')'
 
-sources = ['PixelBloomApp.swift', 'Puzzle.swift', 'PaintStore.swift', 'ContentView.swift']
+sources = ['PixelBloomApp.swift', 'Puzzle.swift', 'PaintStore.swift', 'ContentView.swift', 'ColoringAudio.swift']
 tests = ['PaintStoreTests.swift']
 for name in sources + tests:
     add(name, f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {name}; sourceTree = "<group>";')

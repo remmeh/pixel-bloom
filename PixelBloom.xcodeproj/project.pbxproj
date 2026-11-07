@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AD5458ED5978139F4977C991 /* ColoringAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = F652F00C9CC239B898BF5E04 /* ColoringAudio.swift */; };
 		A11000000000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000002 /* Assets.xcassets */; };
 		2BBC503AF689D458BC6F8514 /* PaintStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA08D05A682F8C85B49E4E8 /* PaintStoreTests.swift */; };
 		2EE4CA8674056E0A7639489A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9727B9EED8ACD2EE46E136A0 /* ContentView.swift */; };
@@ -26,6 +27,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F652F00C9CC239B898BF5E04 /* ColoringAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColoringAudio.swift; sourceTree = "<group>"; };
 		A11000000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6DA08D05A682F8C85B49E4E8 /* PaintStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaintStoreTests.swift; sourceTree = "<group>"; };
 		845F65209D19F1E91A3C573D /* PixelBloom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PixelBloom.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -74,6 +76,7 @@
 		CA58875195AA86D8BE963366 /* PixelBloom */ = {
 			isa = PBXGroup;
 			children = (
+				F652F00C9CC239B898BF5E04 /* ColoringAudio.swift */,
 				B1FC9241A06CDDF2603BE3AA /* PixelBloomApp.swift */,
 				ED4EDD337446DD7F7050CB59 /* Puzzle.swift */,
 				F02556514EFE103272700159 /* PaintStore.swift */,
@@ -181,6 +184,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AD5458ED5978139F4977C991 /* ColoringAudio.swift in Sources */,
 				E578222D24CB7C5437331440 /* PixelBloomApp.swift in Sources */,
 				514FF5EADC0CA7FFA047590F /* Puzzle.swift in Sources */,
 				9C6894DCEAA7BAF39112708D /* PaintStore.swift in Sources */,

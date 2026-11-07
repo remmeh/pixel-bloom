@@ -20,6 +20,7 @@ A native SwiftUI color-by-number app for iPadOS 17 and later. No third-party dep
 - Tiled canvas rendering and background saves to keep large pictures responsive.
 - Hints that highlight and scroll to an unfinished cell.
 - Per-picture progress automatically saved on this device.
+- Soft pixel taps and paced swipe ticks, a chime when a color is finished, and a tone when selecting a different color. The toolbar speaker button remembers your mute preference. Optional sounds respect Silent Mode and mix with other audio.
 - Completion feedback and a confirmed reset for each picture.
 - Portrait, landscape, split-view navigation, and VoiceOver cell labels.
 
@@ -45,6 +46,7 @@ Use an iPad simulator name installed on your Mac (`xcodebuild -showdestinations 
 - `Puzzle.swift`: artwork rows and palettes. A dot is an empty square; base-36 symbols (`1`–`9`, then `A`–`Z`) map to numbered colors. Artwork is parsed once when the library loads.
 - `tools/generate_scenes.py`: dependency-free, deterministic authoring source for the detailed scenes. Run it to update the generated section of `Puzzle.swift`.
 - `PaintStore.swift`: validated painting and local saved progress.
+- `ColoringAudio.swift`: cached, locally synthesized sound effects and swipe pacing; no external audio assets or downloads.
 - `ContentView.swift`: gallery, coloring board, palettes, zoom, and hints.
 - `PixelBloomApp.swift`: app entry point.
 - `PixelBloomTests/`: native unit tests.
