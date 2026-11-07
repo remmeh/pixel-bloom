@@ -1,11 +1,14 @@
 import SwiftUI
 
 // UserDefaults supports concurrent access; all writes from this helper are serialized.
-// Its references never change after initialization.
+// Pending snapshots and worker state are protected by the lock.
 private final class ProgressPersistence: @unchecked Sendable {
     private let defaults: UserDefaults
     private let key: String
     private let queue = DispatchQueue(label: "com.remmeh.PixelBloom.progress", qos: .utility)
+    private let lock = NSLock()
+    private var pending: [String: Set<Int>]?
+    private var isWriting = false
 
     init(defaults: UserDefaults, key: String) {
         self.defaults = defaults
@@ -13,8 +16,26 @@ private final class ProgressPersistence: @unchecked Sendable {
     }
 
     func save(_ snapshot: [String: Set<Int>]) {
+        let shouldStart = lock.withLock {
+            pending = snapshot
+            guard !isWriting else { return false }
+            isWriting = true
+            return true
+        }
+        guard shouldStart else { return }
         queue.async { [self] in
-            if let data = try? JSONEncoder().encode(snapshot) { defaults.set(data, forKey: key) }
+            while let snapshot = takePending() {
+                if let data = try? JSONEncoder().encode(snapshot) { defaults.set(data, forKey: key) }
+            }
+        }
+    }
+
+    private func takePending() -> [String: Set<Int>]? {
+        lock.withLock {
+            let snapshot = pending
+            pending = nil
+            if snapshot == nil { isWriting = false }
+            return snapshot
         }
     }
 
@@ -51,11 +72,19 @@ final class PaintStore: ObservableObject {
     }
     @discardableResult
     func paint(_ index: Int, color: Int, in puzzle: Puzzle) -> Bool {
-        guard puzzle.cells.indices.contains(index), color > 0,
-              puzzle.cells[index] == color, !filled(in: puzzle).contains(index) else { return false }
-        completed[puzzle.id, default: []].insert(index)
+        paint([index], color: color, in: puzzle) > 0
+    }
+
+    @discardableResult
+    func paint(_ indices: [Int], color: Int, in puzzle: Puzzle) -> Int {
+        guard color > 0 else { return 0 }
+        let matching = Set(indices).intersection(puzzle.cellsByColor[color] ?? [])
+        let additions = matching.subtracting(filled(in: puzzle))
+        guard !additions.isEmpty else { return 0 }
+        // Publish and save once per touch sample, even if it crosses many cells.
+        completed[puzzle.id, default: []].formUnion(additions)
         save()
-        return true
+        return additions.count
     }
     func reset(_ puzzle: Puzzle) {
         completed[puzzle.id] = []

@@ -23,6 +23,101 @@ final class PaintStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testDetailedScenesAndTileCoverage() {
+        XCTAssertEqual(Puzzle.detailed.count, 3)
+        XCTAssertEqual(Puzzle.quick.count, 18)
+        for puzzle in Puzzle.all {
+            let indices = puzzle.tiles.flatMap(\.indices)
+            XCTAssertEqual(indices.count, puzzle.cells.count)
+            XCTAssertEqual(Set(indices), Set(puzzle.cells.indices))
+            for tile in puzzle.tiles {
+                XCTAssertLessThanOrEqual(tile.indices.count, 64)
+                for index in tile.indices {
+                    XCTAssertEqual(puzzle.tileID(containing: index), tile.id)
+                }
+            }
+        }
+        for puzzle in Puzzle.detailed {
+            XCTAssertEqual(puzzle.width, 64)
+            XCTAssertEqual(puzzle.height, 64)
+            XCTAssertGreaterThan(puzzle.palette.count, 9)
+            XCTAssertEqual(puzzle.paintable.count, 4096)
+        }
+        let partial = Puzzle(id: "partial", title: "Test", subtitle: "", symbol: "",
+                             rows: Array(repeating: "1111111111", count: 3),
+                             palette: [PaintColor(id: 1, name: "Test", hex: 0)])
+        XCTAssertEqual(partial.tiles.map(\.width), [8, 2])
+        XCTAssertEqual(partial.tiles.flatMap(\.indices).count, 30)
+        XCTAssertEqual(partial.tileID(containing: 29), 1)
+    }
+
+    @MainActor
+    func testDetailedColorsSaveAlongsideExistingProgress() throws {
+        try withDefaults { defaults in
+            let original = Puzzle.quick[0]
+            let originalCell = original.paintable.min()!
+            defaults.set(try JSONEncoder().encode([original.id: Set([originalCell])]), forKey: "pixelbloom.progress.v1")
+            let store = PaintStore(defaults: defaults)
+            let detailed = Puzzle.detailed[0]
+            let index = detailed.cells.firstIndex(where: { $0 > 9 })!
+            XCTAssertTrue(store.paint(index, color: detailed.cells[index], in: detailed))
+            store.flushPendingSaves()
+            let reloaded = PaintStore(defaults: defaults)
+            XCTAssertEqual(reloaded.filled(in: original), [originalCell])
+            XCTAssertEqual(reloaded.filled(in: detailed), [index])
+        }
+    }
+
+    @MainActor
+    func testStrokeCrossesTilesAndFillsOnlyMatchingCellsOnce() {
+        withDefaults { defaults in
+            let puzzle = Puzzle(id: "stroke", title: "Test", subtitle: "", symbol: "",
+                                rows: ["111111112211111111", "111111112211111111"],
+                                palette: [PaintColor(id: 1, name: "One", hex: 0),
+                                          PaintColor(id: 2, name: "Two", hex: 0)])
+            let indices = puzzle.strokeIndices(from: CGPoint(x: 5, y: 5), to: CGPoint(x: 175, y: 5), unit: 10)
+            XCTAssertEqual(indices, Array(0..<18))
+            let store = PaintStore(defaults: defaults)
+            defer { store.flushPendingSaves() }
+            XCTAssertEqual(store.paint(indices + [-1, 9999, 0], color: 1, in: puzzle), 16)
+            XCTAssertEqual(store.filled(in: puzzle), Set(indices).subtracting([8, 9]))
+            XCTAssertEqual(store.paint(indices, color: 1, in: puzzle), 0)
+            XCTAssertEqual(store.paint(indices, color: 0, in: puzzle), 0)
+            XCTAssertEqual(store.paint(indices, color: 2, in: puzzle), 2)
+            XCTAssertEqual(store.filled(in: puzzle), Set(0..<18))
+        }
+    }
+
+    @MainActor
+    func testStrokeSamplingHandlesDiagonalReverseAndCanvasEdges() {
+        let puzzle = Puzzle(id: "sampling", title: "Test", subtitle: "", symbol: "",
+                            rows: Array(repeating: String(repeating: "1", count: 18), count: 18),
+                            palette: [PaintColor(id: 1, name: "One", hex: 0)])
+        let diagonal = (0..<18).map { $0 * 18 + $0 }
+        XCTAssertEqual(puzzle.strokeIndices(from: CGPoint(x: 5, y: 5), to: CGPoint(x: 175, y: 175), unit: 10), diagonal)
+        XCTAssertEqual(puzzle.strokeIndices(from: CGPoint(x: 175, y: 175), to: CGPoint(x: 5, y: 5), unit: 10), diagonal.reversed())
+        XCTAssertEqual(puzzle.strokeIndices(from: CGPoint(x: -20, y: 5), to: CGPoint(x: 25, y: 5), unit: 10), [0, 1, 2])
+        XCTAssertTrue(puzzle.strokeIndices(from: CGPoint(x: -1, y: -1), to: CGPoint(x: -1, y: -1), unit: 10).isEmpty)
+        XCTAssertTrue(puzzle.strokeIndices(from: CGPoint(x: 180, y: 0), to: CGPoint(x: 180, y: 0), unit: 10).isEmpty)
+        XCTAssertTrue(puzzle.strokeIndices(from: .zero, to: .zero, unit: 0).isEmpty)
+    }
+
+    @MainActor
+    func testBatchStrokeProgressSurvivesRelaunch() {
+        withDefaults { defaults in
+            let store = PaintStore(defaults: defaults)
+            let puzzle = Puzzle.detailed[0]
+            let color = puzzle.cells[0]
+            let indices = Array(puzzle.cellsByColor[color]!.sorted().prefix(200))
+            XCTAssertEqual(store.paint(indices, color: color, in: puzzle), indices.count)
+            store.flushPendingSaves()
+            let reloaded = PaintStore(defaults: defaults)
+            XCTAssertEqual(reloaded.filled(in: puzzle), Set(indices))
+            XCTAssertEqual(reloaded.remaining(color, in: puzzle), puzzle.cellsByColor[color]!.count - indices.count)
+        }
+    }
+
+    @MainActor
     func testOnlyMatchingUnfilledCellsCanBePainted() {
         withDefaults { defaults in
             let store = PaintStore(defaults: defaults)

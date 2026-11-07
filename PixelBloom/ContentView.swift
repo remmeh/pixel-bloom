@@ -8,11 +8,17 @@ struct ContentView: View {
     @State private var selectedID: String? = Puzzle.all.first?.id
     var body: some View {
         NavigationSplitView {
-            List(Puzzle.all, selection: $selectedID) { puzzle in
-                PuzzleRow(puzzle: puzzle, progress: store.progress(in: puzzle))
-                    .equatable()
-                    .tag(puzzle.id)
-                    .listRowBackground(Color.clear)
+            List(selection: $selectedID) {
+                Section("Detailed scenes") {
+                    ForEach(Puzzle.detailed) { puzzle in
+                        puzzleRow(puzzle)
+                    }
+                }
+                Section("Little pictures") {
+                    ForEach(Puzzle.quick) { puzzle in
+                        puzzleRow(puzzle)
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             .background(paper)
@@ -35,6 +41,13 @@ struct ContentView: View {
         // The canvas uses fixed light paper colors, so its text and controls need a matching appearance.
         .preferredColorScheme(.light)
     }
+
+    private func puzzleRow(_ puzzle: Puzzle) -> some View {
+        PuzzleRow(puzzle: puzzle, progress: store.progress(in: puzzle))
+            .equatable()
+            .tag(puzzle.id)
+            .listRowBackground(Color.clear)
+    }
 }
 
 private struct PuzzleRow: View, Equatable {
@@ -42,35 +55,15 @@ private struct PuzzleRow: View, Equatable {
     let progress: Double
 
     var body: some View {
-        HStack(spacing: 14) {
-            ArtworkPreview(puzzle: puzzle)
-                .equatable()
-                .frame(width: 62, height: 62)
-                .background(.white, in: RoundedRectangle(cornerRadius: 12))
-            VStack(alignment: .leading, spacing: 6) {
-                Text(puzzle.title).font(.headline)
-                Text(progress == 1 ? "Completed" : "\(Int(progress * 100))% colored")
-                    .font(.caption).foregroundStyle(secondaryInk)
-                ProgressView(value: progress).accessibilityLabel("Coloring progress")
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(puzzle.title).font(.headline)
+            Text("\(puzzle.width) × \(puzzle.height) · \(puzzle.palette.count) colors")
+                .font(.caption2).foregroundStyle(secondaryInk)
+            Text(progress == 1 ? "Completed" : "\(Int(progress * 100))% colored")
+                .font(.caption).foregroundStyle(secondaryInk)
+            ProgressView(value: progress).accessibilityLabel("Coloring progress")
         }
         .padding(.vertical, 8)
-    }
-}
-
-struct ArtworkPreview: View, Equatable {
-    let puzzle: Puzzle
-    var body: some View {
-        Canvas { context, size in
-            let unit = min(size.width / CGFloat(puzzle.width), size.height / CGFloat(puzzle.height))
-            for (index, number) in puzzle.cells.enumerated() where number > 0 {
-                if let color = puzzle.colorsByNumber[number] {
-                    let rect = CGRect(x: CGFloat(index % puzzle.width) * unit,
-                                      y: CGFloat(index / puzzle.width) * unit, width: unit, height: unit)
-                    context.fill(Path(rect), with: .color(color.color))
-                }
-            }
-        }.padding(6).accessibilityLabel("\(puzzle.title), pixel art preview")
     }
 }
 
@@ -78,9 +71,16 @@ struct ColoringView: View {
     let puzzle: Puzzle
     @EnvironmentObject private var store: PaintStore
     @State private var selectedColor = 1
-    @State private var zoom: CGFloat = 1
+    @State private var isMoving = false
+    @State private var zoom: CGFloat
     @GestureState private var pinchScale: CGFloat = 1
-    private var effectiveZoom: CGFloat { min(3, max(1, zoom * pinchScale)) }
+    private var maximumZoom: CGFloat { puzzle.width > 16 ? 10 : 3 }
+    private var effectiveZoom: CGFloat { min(maximumZoom, max(1, zoom * pinchScale)) }
+
+    init(puzzle: Puzzle) {
+        self.puzzle = puzzle
+        _zoom = State(initialValue: puzzle.width > 16 ? 3 : 1)
+    }
     @State private var hint: Int?
     @State private var showReset = false
     @State private var message = "Choose a color, then tap its matching numbers."
@@ -103,28 +103,38 @@ struct ColoringView: View {
             }.padding(24)
 
             HStack {
-                Label(isComplete ? "Beautifully done!" : "One pixel at a time", systemImage: isComplete ? "checkmark.seal.fill" : "square.grid.3x3")
-                    .font(.subheadline.weight(.medium))
+                Picker("Canvas mode", selection: $isMoving) {
+                    Text("Paint").tag(false)
+                    Text("Move").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 160)
+                .accessibilityHint("Paint to drag across matching cells. Move to pan around the canvas.")
                 Spacer()
                 Button { zoom = max(1, zoom - 0.5) } label: { Image(systemName: "minus.magnifyingglass") }
                     .disabled(zoom <= 1).accessibilityLabel("Zoom out")
                 Text("\(Int(effectiveZoom * 100))% ").font(.caption.monospacedDigit()).frame(width: 48)
-                Button { zoom = min(3, zoom + 0.5) } label: { Image(systemName: "plus.magnifyingglass") }
-                    .disabled(zoom >= 3).accessibilityLabel("Zoom in")
+                if puzzle.width > 16 {
+                    Button("Overview") { zoom = 1 }
+                        .accessibilityHint("Zoom out to see the whole canvas and your coloring progress")
+                }
+                Button { zoom = min(maximumZoom, zoom + 0.5) } label: { Image(systemName: "plus.magnifyingglass") }
+                    .disabled(zoom >= maximumZoom).accessibilityLabel("Zoom in")
             }.buttonStyle(.bordered).padding(.horizontal, 24).padding(.bottom, 12)
 
-            PixelBoard(puzzle: puzzle, filled: store.filled(in: puzzle), selectedColor: selectedColor, zoom: effectiveZoom, hint: $hint) { index in
-                if store.paint(index, color: selectedColor, in: puzzle) {
+            PixelBoard(puzzle: puzzle, filled: store.filled(in: puzzle), selectedColor: selectedColor,
+                       zoom: effectiveZoom, isMoving: isMoving, isPinching: pinchScale != 1, hint: $hint) { indices in
+                if store.paint(indices, color: selectedColor, in: puzzle) > 0 {
                     hint = nil
                     message = isComplete ? "Your picture is complete. Beautifully done!" : "Nice! Keep finding \(selectedColor)s."
-                } else if !store.filled(in: puzzle).contains(index) {
+                } else if indices.count == 1, let index = indices.first, !store.filled(in: puzzle).contains(index) {
                     message = "Select color \(puzzle.cells[index]) to fill that square."
                 }
             }
             .simultaneousGesture(
                 MagnifyGesture()
                     .updating($pinchScale) { value, scale, _ in scale = value.magnification }
-                    .onEnded { value in zoom = min(3, max(1, zoom * value.magnification)) }
+                    .onEnded { value in zoom = min(maximumZoom, max(1, zoom * value.magnification)) }
             )
             .background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 24))
             .padding(.horizontal, 20)
@@ -144,7 +154,7 @@ struct ColoringView: View {
                         }
                     }.padding(4)
                 }
-                Text("Match the numbers • Pinch to zoom • Scroll to explore")
+                Text("Drag to color • Move to pan • Pinch to zoom")
                     .font(.caption2).foregroundStyle(secondaryInk)
             }.padding(24)
         }
@@ -217,71 +227,130 @@ struct PixelBoard: View {
     let filled: Set<Int>
     let selectedColor: Int
     let zoom: CGFloat
+    let isMoving: Bool
+    let isPinching: Bool
     @Binding var hint: Int?
-    let onPaint: (Int) -> Void
+    let onPaint: ([Int]) -> Void
+    @State private var lastPaintPoint: CGPoint?
 
     var body: some View {
         GeometryReader { geometry in
-            let unit = max(20, min((geometry.size.width - 48) / CGFloat(puzzle.width),
-                                   (geometry.size.height - 48) / CGFloat(puzzle.height))) * zoom
+            let minimumUnit: CGFloat = puzzle.width > 16 ? 4 : 20
+            let unit = max(minimumUnit, min((geometry.size.width - 48) / CGFloat(puzzle.width),
+                                           (geometry.size.height - 48) / CGFloat(puzzle.height))) * zoom
             ScrollViewReader { proxy in
                 ScrollView([.horizontal, .vertical]) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(unit), spacing: 0), count: puzzle.width), spacing: 0) {
-                        ForEach(puzzle.cells.indices, id: \.self) { index in
-                            PixelCell(index: index, width: puzzle.width, number: puzzle.cells[index],
-                                      paint: puzzle.colorsByNumber[puzzle.cells[index]],
-                                      filled: filled.contains(index), selectedColor: selectedColor,
-                                      isHint: hint == index, unit: unit, onPaint: onPaint)
+                    LazyVGrid(columns: (0..<puzzle.tileColumns).map { column in
+                        GridItem(.fixed(CGFloat(min(Puzzle.tileSize, puzzle.width - column * Puzzle.tileSize)) * unit), spacing: 0)
+                    }, spacing: 0) {
+                        ForEach(puzzle.tiles) { tile in
+                            PixelTile(puzzle: puzzle, tile: tile, filled: filled.intersection(tile.indices),
+                                      selectedColor: selectedColor, unit: unit,
+                                      hint: hint.flatMap { tile.indices.contains($0) ? $0 : nil },
+                                      onPaint: { onPaint([$0]) })
                                 .equatable()
-                                .id(index)
+                                .id(tile.id)
                         }
                     }
                     .frame(width: CGFloat(puzzle.width) * unit)
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        guard !isMoving, !isPinching else { return }
+                        onPaint(puzzle.strokeIndices(from: location, to: location, unit: unit))
+                    }
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 2)
+                            .onChanged { value in
+                                guard !isPinching else { lastPaintPoint = nil; return }
+                                let start = lastPaintPoint ?? value.startLocation
+                                lastPaintPoint = value.location
+                                onPaint(puzzle.strokeIndices(from: start, to: value.location, unit: unit))
+                            }
+                            .onEnded { value in
+                                if !isPinching {
+                                    onPaint(puzzle.strokeIndices(from: lastPaintPoint ?? value.startLocation,
+                                                                to: value.location, unit: unit))
+                                }
+                                lastPaintPoint = nil
+                            },
+                        including: isMoving ? .none : .all
+                    )
                     .padding(24)
                     .frame(minWidth: geometry.size.width, minHeight: geometry.size.height)
                 }
+                .scrollDisabled(!isMoving)
+                .defaultScrollAnchor(.center)
+                .onChange(of: isMoving) { _, _ in lastPaintPoint = nil }
+                .onChange(of: isPinching) { _, _ in lastPaintPoint = nil }
                 .onChange(of: hint) { _, index in
-                    if let index { withAnimation { proxy.scrollTo(index, anchor: .center) } }
+                    if let index {
+                        withAnimation { proxy.scrollTo(puzzle.tileID(containing: index), anchor: .center) }
+                    }
                 }
             }
         }
     }
 }
 
-private struct PixelCell: View, Equatable {
-    let index: Int
-    let width: Int
-    let number: Int
-    let paint: PaintColor?
-    let filled: Bool
+// Each tile is one drawing surface, rather than 64 separately laid-out buttons.
+// Only the changed tile redraws after painting; offscreen tile rows stay lazy.
+private struct PixelTile: View, Equatable {
+    let puzzle: Puzzle
+    let tile: Puzzle.Tile
+    let filled: Set<Int>
     let selectedColor: Int
-    let isHint: Bool
     let unit: CGFloat
+    let hint: Int?
     let onPaint: (Int) -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.index == rhs.index && lhs.width == rhs.width && lhs.number == rhs.number &&
-        lhs.paint == rhs.paint && lhs.filled == rhs.filled && lhs.selectedColor == rhs.selectedColor &&
-        lhs.isHint == rhs.isHint && lhs.unit == rhs.unit
+        lhs.puzzle.id == rhs.puzzle.id && lhs.tile.id == rhs.tile.id &&
+        lhs.filled == rhs.filled && lhs.selectedColor == rhs.selectedColor &&
+        lhs.unit == rhs.unit && lhs.hint == rhs.hint
     }
 
-    @ViewBuilder var body: some View {
-        if number == 0 {
-            Color.clear.frame(width: unit, height: unit).accessibilityHidden(true)
-        } else {
-            Button { onPaint(index) } label: {
-                ZStack {
-                    Rectangle().fill(filled ? (paint?.color ?? .gray) : (selectedColor == number ? (paint?.color.opacity(0.18) ?? .white) : .white))
-                    if !filled {
-                        Text("\(number)").font(.system(size: min(22, unit * 0.42), weight: selectedColor == number ? .bold : .regular, design: .rounded))
-                            .foregroundStyle(selectedColor == number ? Color.primary : secondaryInk)
-                    }
-                    Rectangle().strokeBorder(isHint ? Color.primary : Color.black.opacity(0.09), lineWidth: isHint ? 3 : 0.5)
-                }.frame(width: unit, height: unit).contentShape(Rectangle())
+    var body: some View {
+        Canvas { context, _ in
+            var labels: [Int: GraphicsContext.ResolvedText] = [:]
+            if unit >= 11 {
+                for paint in puzzle.palette {
+                    let size = min(22, unit * (paint.id >= 10 ? 0.34 : 0.42))
+                    labels[paint.id] = context.resolve(Text("\(paint.id)")
+                        .font(.system(size: size, weight: selectedColor == paint.id ? .bold : .regular, design: .rounded))
+                        .foregroundStyle(selectedColor == paint.id ? Color.primary : secondaryInk))
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Row \(index / width + 1), column \(index % width + 1), color \(number), \(filled ? "filled" : "unfilled")\(isHint ? ", hint" : "")")
-            .accessibilityHint(filled ? "Already colored" : "Select color \(number), then activate to fill")
+            var grid = Path()
+            for index in tile.indices {
+                let number = puzzle.cells[index]
+                guard number > 0 else { continue }
+                let rect = CGRect(x: CGFloat(index % puzzle.width - tile.column) * unit,
+                                  y: CGFloat(index / puzzle.width - tile.row) * unit,
+                                  width: unit, height: unit)
+                let paint = puzzle.colorsByNumber[number]?.color ?? .gray
+                let isFilled = filled.contains(index)
+                context.fill(Path(rect), with: .color(isFilled ? paint : (selectedColor == number ? paint.opacity(0.18) : .white)))
+                if !isFilled, let label = labels[number] {
+                    context.draw(label, at: CGPoint(x: rect.midX, y: rect.midY))
+                }
+                if unit >= 10 { grid.addRect(rect) }
+            }
+            context.stroke(grid, with: .color(.black.opacity(0.09)), lineWidth: 0.5)
+            if let hint {
+                let rect = CGRect(x: CGFloat(hint % puzzle.width - tile.column) * unit + 1.5,
+                                  y: CGFloat(hint / puzzle.width - tile.row) * unit + 1.5,
+                                  width: unit - 3, height: unit - 3)
+                context.stroke(Path(rect), with: .color(.primary), lineWidth: 3)
+            }
+        }
+        .frame(width: CGFloat(tile.width) * unit, height: CGFloat(tile.height) * unit)
+        .accessibilityChildren {
+            ForEach(tile.indices.filter { puzzle.cells[$0] > 0 }, id: \.self) { index in
+                Button { onPaint(index) } label: {
+                    Text("Row \(index / puzzle.width + 1), column \(index % puzzle.width + 1), color \(puzzle.cells[index]), \(filled.contains(index) ? "filled" : "unfilled")\(hint == index ? ", hint" : "")")
+                }
+                .accessibilityHint(filled.contains(index) ? "Already colored" : "Select color \(puzzle.cells[index]), then activate to fill")
+            }
         }
     }
 }
