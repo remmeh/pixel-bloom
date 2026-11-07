@@ -4,9 +4,10 @@ import re
 import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parent
-source = (root / 'PixelBloom/Puzzle.swift').read_text()
+source = '\n'.join((root / 'PixelBloom' / name).read_text() for name in ('Puzzle.swift', 'CharacterScenes.swift'))
 puzzles = re.findall(r'Puzzle\(id: "([^"]+)".*?rows: \[(.*?)\], palette: \[(.*?)\]\)', source, re.S)
-assert len(puzzles) == 21
+assert len(puzzles) == 49
+assert sum(name.startswith('character-') for name, _, _ in puzzles) == 28
 assert len({p[0] for p in puzzles}) == len(puzzles)
 for name, raw_rows, raw_palette in puzzles:
     rows = re.findall(r'"([.0-9A-Z]+)"', raw_rows)

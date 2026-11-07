@@ -15,6 +15,14 @@ struct ContentView: View {
                         puzzleRow(puzzle)
                     }
                 }
+                Section("Pusheen") {
+                    puzzleRow(Puzzle.pusheen)
+                }
+                Section("Sanrio characters") {
+                    ForEach(Puzzle.sanrio) { puzzle in
+                        puzzleRow(puzzle)
+                    }
+                }
                 Section("Little pictures") {
                     ForEach(Puzzle.quick) { puzzle in
                         puzzleRow(puzzle)

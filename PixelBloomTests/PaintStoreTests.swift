@@ -126,6 +126,8 @@ final class PaintStoreTests: XCTestCase {
     func testDetailedScenesAndTileCoverage() {
         XCTAssertEqual(Puzzle.detailed.count, 3)
         XCTAssertEqual(Puzzle.quick.count, 18)
+        XCTAssertEqual(Puzzle.sanrio.count, 27)
+        XCTAssertEqual(Puzzle.pusheen.id, "character-pusheen-64-v1")
         for puzzle in Puzzle.all {
             let indices = puzzle.tiles.flatMap(\.indices)
             XCTAssertEqual(indices.count, puzzle.cells.count)
@@ -137,12 +139,12 @@ final class PaintStoreTests: XCTestCase {
                 }
             }
         }
-        for puzzle in Puzzle.detailed {
+        for puzzle in Puzzle.detailed + Puzzle.sanrio + [Puzzle.pusheen] {
             XCTAssertEqual(puzzle.width, 64)
             XCTAssertEqual(puzzle.height, 64)
-            XCTAssertGreaterThan(puzzle.palette.count, 9)
             XCTAssertEqual(puzzle.paintable.count, 4096)
         }
+        for puzzle in Puzzle.detailed { XCTAssertGreaterThan(puzzle.palette.count, 9) }
         let partial = Puzzle(id: "partial", title: "Test", subtitle: "", symbol: "",
                              rows: Array(repeating: "1111111111", count: 3),
                              palette: [PaintColor(id: 1, name: "Test", hex: 0)])

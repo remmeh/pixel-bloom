@@ -94,7 +94,7 @@ struct Puzzle: Identifiable, Equatable {
         tiles = builtTiles
     }
 
-    static let all: [Puzzle] = detailed + quick
+    static let all: [Puzzle] = detailed + sanrio + [pusheen] + quick
 
     static let quick: [Puzzle] = [
         Puzzle(id: "bloom", title: "Little bloom", subtitle: "A little color, a little calm.", symbol: "camera.macro", rows: [

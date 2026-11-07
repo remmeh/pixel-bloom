@@ -13,6 +13,7 @@ A native SwiftUI color-by-number app for iPadOS 17 and later. No third-party dep
 
 - Three detailed 64×64 scenes with 21–24 colors: a sunlit garden, a cabin at dusk, and a butterfly meadow.
 - Eighteen original 16×16 pictures in a separate **Little pictures** section, retaining their saved progress.
+- Twenty-eight 64×64 character scenes in the **Sanrio characters** and **Pusheen** sections. The Sanrio collection follows the 27 named entries in the [U.S. shop’s character menu](https://www.sanrio.com/collections/all-sanrio-characters).
 - A sidebar with titles and progress only, so the finished artwork stays a surprise.
 - Numbered colors with remaining-square counts and selected-color highlighting.
 - Tap or drag to fill matching cells; incorrect colors never overwrite a square. Use one finger to paint, three fingers to pan, and pinch to zoom. Fast strokes fill intervening matching cells, including across tile boundaries.
@@ -45,6 +46,7 @@ Use an iPad simulator name installed on your Mac (`xcodebuild -showdestinations 
 
 - `Puzzle.swift`: artwork rows and palettes. A dot is an empty square; base-36 symbols (`1`–`9`, then `A`–`Z`) map to numbered colors. Artwork is parsed once when the library loads.
 - `tools/generate_scenes.py`: dependency-free, deterministic authoring source for the detailed scenes. Run it to update the generated section of `Puzzle.swift`.
+- `tools/generate_characters.py`: pixel art source for the generated `CharacterScenes.swift` catalog.
 - `PaintStore.swift`: validated painting and local saved progress.
 - `ColoringAudio.swift`: cached, locally synthesized sound effects and swipe pacing; no external audio assets or downloads.
 - `ContentView.swift`: gallery, coloring board, palettes, zoom, and hints.
