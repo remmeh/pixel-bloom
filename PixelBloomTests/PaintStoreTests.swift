@@ -82,7 +82,7 @@ final class PaintStoreTests: XCTestCase {
     @MainActor
     func testTouchBridgeConnectsInsideSwiftUIBoard() async {
         let board = PixelBoard(puzzle: Puzzle.detailed[0], filled: [], selectedColor: 1,
-                               zoom: 3, isPinching: false, hint: .constant(nil), onPaint: { _, _ in })
+                               zoom: .constant(3), maximumZoom: 10, hint: .constant(nil), onPaint: { _, _ in })
         let host = UIHostingController(rootView: board)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 900, height: 600))
         window.rootViewController = host

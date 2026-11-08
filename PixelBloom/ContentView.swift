@@ -8,43 +8,45 @@ struct ContentView: View {
     @EnvironmentObject private var store: PaintStore
     @State private var selectedID: String? = Puzzle.all.first?.id
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedID) {
-                Section("Detailed scenes") {
-                    ForEach(Puzzle.detailed) { puzzle in
-                        puzzleRow(puzzle)
+        GeometryReader { geometry in
+            NavigationSplitView {
+                List(selection: $selectedID) {
+                    Section("Detailed scenes") {
+                        ForEach(Puzzle.detailed) { puzzle in
+                            puzzleRow(puzzle)
+                        }
+                    }
+                    Section("Pusheen") {
+                        puzzleRow(Puzzle.pusheen)
+                    }
+                    Section("Sanrio characters") {
+                        ForEach(Puzzle.sanrio) { puzzle in
+                            puzzleRow(puzzle)
+                        }
+                    }
+                    Section("Little pictures") {
+                        ForEach(Puzzle.quick) { puzzle in
+                            puzzleRow(puzzle)
+                        }
                     }
                 }
-                Section("Pusheen") {
-                    puzzleRow(Puzzle.pusheen)
+                .scrollContentBackground(.hidden)
+                .background(paper)
+                .navigationTitle("Pixel Bloom")
+                .safeAreaInset(edge: .bottom) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("A moment of color", systemImage: "leaf")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Pick a picture. Find your rhythm.")
+                            .font(.caption).foregroundStyle(secondaryInk)
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
                 }
-                Section("Sanrio characters") {
-                    ForEach(Puzzle.sanrio) { puzzle in
-                        puzzleRow(puzzle)
-                    }
+            } detail: {
+                if let puzzle = Puzzle.all.first(where: { $0.id == selectedID }) {
+                    ColoringView(puzzle: puzzle, prefersSidePalette: geometry.size.width > geometry.size.height).id(puzzle.id)
+                } else {
+                    ContentUnavailableView("Choose a picture", systemImage: "square.grid.3x3", description: Text("Your next little masterpiece is waiting."))
                 }
-                Section("Little pictures") {
-                    ForEach(Puzzle.quick) { puzzle in
-                        puzzleRow(puzzle)
-                    }
-                }
-            }
-            .scrollContentBackground(.hidden)
-            .background(paper)
-            .navigationTitle("Pixel Bloom")
-            .safeAreaInset(edge: .bottom) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("A moment of color", systemImage: "leaf")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Pick a picture. Find your rhythm.")
-                        .font(.caption).foregroundStyle(secondaryInk)
-                }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
-            }
-        } detail: {
-            if let puzzle = Puzzle.all.first(where: { $0.id == selectedID }) {
-                ColoringView(puzzle: puzzle).id(puzzle.id)
-            } else {
-                ContentUnavailableView("Choose a picture", systemImage: "square.grid.3x3", description: Text("Your next little masterpiece is waiting."))
             }
         }
         // The canvas uses fixed light paper colors, so its text and controls need a matching appearance.
@@ -78,16 +80,16 @@ private struct PuzzleRow: View, Equatable {
 
 struct ColoringView: View {
     let puzzle: Puzzle
+    let prefersSidePalette: Bool
     @EnvironmentObject private var store: PaintStore
     @State private var selectedColor = 1
     @AppStorage("pixelbloom.sound.enabled") private var soundEnabled = true
     @State private var zoom: CGFloat
-    @GestureState private var pinchScale: CGFloat = 1
     private var maximumZoom: CGFloat { puzzle.width > 16 ? 10 : 3 }
-    private var effectiveZoom: CGFloat { min(maximumZoom, max(1, zoom * pinchScale)) }
 
-    init(puzzle: Puzzle) {
+    init(puzzle: Puzzle, prefersSidePalette: Bool) {
         self.puzzle = puzzle
+        self.prefersSidePalette = prefersSidePalette
         _zoom = State(initialValue: puzzle.width > 16 ? 3 : 1)
     }
     @State private var hint: Int?
@@ -96,76 +98,23 @@ struct ColoringView: View {
     private var isComplete: Bool { store.progress(in: puzzle) == 1 }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(puzzle.title).font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text(puzzle.subtitle).font(.subheadline).foregroundStyle(secondaryInk)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 6) {
-                    Text(store.progress(in: puzzle), format: .percent.precision(.fractionLength(0)))
-                        .font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit()
-                    Text("\(store.filled(in: puzzle).count) / \(puzzle.paintable.count) pixels")
-                        .font(.caption).foregroundStyle(secondaryInk)
-                }
-            }.padding(24)
-
-            HStack {
-                Label("Drag to color", systemImage: "hand.draw")
-                    .font(.subheadline)
-                Spacer()
-                Button { zoom = max(1, zoom - 0.5) } label: { Image(systemName: "minus.magnifyingglass") }
-                    .disabled(zoom <= 1).accessibilityLabel("Zoom out")
-                Text("\(Int(effectiveZoom * 100))% ").font(.caption.monospacedDigit()).frame(width: 48)
-                if puzzle.width > 16 {
-                    Button("Overview") { zoom = 1 }
-                        .accessibilityHint("Zoom out to see the whole canvas and your coloring progress")
-                }
-                Button { zoom = min(maximumZoom, zoom + 0.5) } label: { Image(systemName: "plus.magnifyingglass") }
-                    .disabled(zoom >= maximumZoom).accessibilityLabel("Zoom in")
-            }.buttonStyle(.bordered).padding(.horizontal, 24).padding(.bottom, 12)
-
-            PixelBoard(puzzle: puzzle, filled: store.filled(in: puzzle), selectedColor: selectedColor,
-                       zoom: effectiveZoom, isPinching: pinchScale != 1, hint: $hint) { indices, interaction in
-                let added = store.paint(indices, color: selectedColor, in: puzzle)
-                if added > 0 {
-                    if soundEnabled {
-                        ColoringAudio.shared.painted(added: added, remaining: store.remaining(selectedColor, in: puzzle),
-                                                     interaction: interaction)
+        GeometryReader { geometry in
+            let sidePalette = prefersSidePalette && geometry.size.width >= 520
+            let layout = sidePalette ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(spacing: 0))
+            VStack(spacing: 0) {
+                header(compact: sidePalette)
+                layout {
+                    canvas(compact: sidePalette)
+                        .padding(.horizontal, sidePalette ? 0 : 20)
+                    if sidePalette {
+                        sidePaletteView
+                    } else {
+                        bottomPalette
                     }
-                    hint = nil
-                    message = isComplete ? "Your picture is complete. Beautifully done!" : "Nice! Keep finding \(selectedColor)s."
-                } else if indices.count == 1, let index = indices.first, !store.filled(in: puzzle).contains(index) {
-                    message = "Select color \(puzzle.cells[index]) to fill that square."
                 }
+                .padding(.horizontal, sidePalette ? 12 : 0)
+                .padding(.bottom, sidePalette ? 12 : 0)
             }
-            .simultaneousGesture(
-                MagnifyGesture()
-                    .updating($pinchScale) { value, scale, _ in scale = value.magnification }
-                    .onEnded { value in zoom = min(maximumZoom, max(1, zoom * value.magnification)) }
-            )
-            .background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 24))
-            .padding(.horizontal, 20)
-
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(isComplete ? "Picture complete — take a moment to enjoy it." : message)
-                        .font(.footnote).foregroundStyle(secondaryInk).accessibilityAddTraits(.updatesFrequently)
-                    Spacer()
-                    Button { findHint() } label: { Label("Hint", systemImage: "lightbulb") }
-                        .disabled(isComplete)
-                }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(puzzle.palette) { paint in
-                            paletteButton(paint)
-                        }
-                    }.padding(4)
-                }
-                Text("One finger to color • Three fingers to move • Pinch to zoom")
-                    .font(.caption2).foregroundStyle(secondaryInk)
-            }.padding(24)
         }
         .background(paper)
         .navigationTitle("Color by number")
@@ -196,7 +145,148 @@ struct ColoringView: View {
         .sensoryFeedback(.selection, trigger: store.filled(in: puzzle).count)
     }
 
-    private func paletteButton(_ paint: PaintColor) -> some View {
+    @ViewBuilder
+    private func header(compact: Bool) -> some View {
+        if compact {
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    compactTitle
+                    Spacer(minLength: 12)
+                    zoomControls
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    compactTitle
+                    zoomControls
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+        } else {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(puzzle.title).font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    Text(puzzle.subtitle).font(.subheadline).foregroundStyle(secondaryInk)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) {
+                    progressPercent.font(.system(.title2, design: .rounded, weight: .semibold))
+                    Text("\(store.filled(in: puzzle).count) / \(puzzle.paintable.count) pixels")
+                        .font(.caption).foregroundStyle(secondaryInk)
+                }
+            }
+            .padding(24)
+
+            HStack {
+                Label("Drag to color", systemImage: "hand.draw").font(.subheadline)
+                Spacer()
+                zoomControls
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private var compactTitle: some View {
+        HStack(spacing: 8) {
+            Text(puzzle.title).font(.headline).lineLimit(1).truncationMode(.tail)
+            progressPercent.font(.caption).foregroundStyle(secondaryInk)
+                .accessibilityLabel("Coloring progress")
+                .accessibilityValue(store.progress(in: puzzle).formatted(.percent.precision(.fractionLength(0))))
+        }
+    }
+
+    private var progressPercent: some View {
+        Text(store.progress(in: puzzle), format: .percent.precision(.fractionLength(0)))
+            .monospacedDigit()
+    }
+
+    private var zoomControls: some View {
+        HStack {
+            Button { zoom = max(1, zoom - 0.5) } label: { Image(systemName: "minus.magnifyingglass") }
+                .disabled(zoom <= 1).accessibilityLabel("Zoom out")
+            Text("\(Int(zoom * 100))%").font(.caption.monospacedDigit()).frame(minWidth: 40)
+            if puzzle.width > 16 {
+                Button("Overview") { zoom = 1 }
+                    .accessibilityHint("Zoom out to see the whole canvas and your coloring progress")
+            }
+            Button { zoom = min(maximumZoom, zoom + 0.5) } label: { Image(systemName: "plus.magnifyingglass") }
+                .disabled(zoom >= maximumZoom).accessibilityLabel("Zoom in")
+        }
+        .buttonStyle(.bordered)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func canvas(compact: Bool) -> some View {
+        PixelBoard(puzzle: puzzle, filled: store.filled(in: puzzle), selectedColor: selectedColor,
+                   zoom: $zoom, maximumZoom: maximumZoom, hint: $hint, margin: compact ? 12 : 24) { indices, interaction in
+            let added = store.paint(indices, color: selectedColor, in: puzzle)
+            if added > 0 {
+                if soundEnabled {
+                    ColoringAudio.shared.painted(added: added, remaining: store.remaining(selectedColor, in: puzzle),
+                                                 interaction: interaction)
+                }
+                hint = nil
+                message = isComplete ? "Your picture is complete. Beautifully done!" : "Nice! Keep finding \(selectedColor)s."
+            } else if indices.count == 1, let index = indices.first, !store.filled(in: puzzle).contains(index) {
+                message = "Select color \(puzzle.cells[index]) to fill that square."
+            }
+        }
+        .background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 24))
+    }
+
+    private var hintButton: some View {
+        Button { findHint() } label: { Label("Hint", systemImage: "lightbulb") }
+            .disabled(isComplete)
+    }
+
+    private var feedbackText: some View {
+        Text(isComplete ? "Picture complete — take a moment to enjoy it." : message)
+            .font(.footnote).foregroundStyle(secondaryInk).accessibilityAddTraits(.updatesFrequently)
+    }
+
+    private var sidePaletteView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Colors").font(.subheadline.weight(.semibold))
+                Spacer(minLength: 4)
+                hintButton.labelStyle(.iconOnly)
+            }
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 4) {
+                    ForEach(puzzle.palette) { paint in
+                        paletteButton(paint, compact: true)
+                    }
+                }
+                .padding(2)
+            }
+            feedbackText
+        }
+        .padding(8)
+        .frame(width: 148)
+        .background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var bottomPalette: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                feedbackText
+                Spacer()
+                hintButton
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(puzzle.palette) { paint in
+                        paletteButton(paint, compact: false)
+                    }
+                }.padding(4)
+            }
+            Text("One finger to color • Three fingers to move • Pinch to zoom")
+                .font(.caption2).foregroundStyle(secondaryInk)
+        }
+        .padding(24)
+    }
+
+    private func paletteButton(_ paint: PaintColor, compact: Bool) -> some View {
         let remaining = store.remaining(paint.id, in: puzzle)
         return Button {
             if soundEnabled { ColoringAudio.shared.selected(from: selectedColor, to: paint.id) }
@@ -204,18 +294,24 @@ struct ColoringView: View {
             hint = nil
             message = remaining == 0 ? "All \(paint.name.lowercased()) squares are done!" : "Find \(remaining) squares marked \(paint.id)."
         } label: {
-            VStack(spacing: 6) {
+            let layout = compact ? AnyLayout(HStackLayout(spacing: 6)) : AnyLayout(VStackLayout(spacing: 6))
+            layout {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 15).fill(paint.color)
+                    RoundedRectangle(cornerRadius: compact ? 9 : 15).fill(paint.color)
                     // Use dark ink on a white badge so every palette number stays legible.
                     Text(remaining == 0 ? "✓" : "\(paint.id)")
-                        .font(.headline).foregroundStyle(.black)
-                        .frame(width: 28, height: 28).background(.white.opacity(0.92), in: Circle())
-                }.frame(width: 58, height: 54)
-                Text(paint.name).font(.caption2).foregroundStyle(.primary).lineLimit(1)
-                Text("\(remaining) left").font(.caption2).foregroundStyle(secondaryInk)
+                        .font(compact ? .caption.weight(.semibold) : .headline).foregroundStyle(.black)
+                        .frame(width: compact ? 22 : 28, height: compact ? 22 : 28)
+                        .background(.white.opacity(0.92), in: Circle())
+                }.frame(width: compact ? 34 : 58, height: compact ? 34 : 54)
+                VStack(alignment: compact ? .leading : .center, spacing: compact ? 2 : 6) {
+                    Text(paint.name).font(.caption2).foregroundStyle(.primary).lineLimit(1)
+                    Text("\(remaining) left").font(.caption2).foregroundStyle(secondaryInk)
+                }
+                .frame(maxWidth: compact ? .infinity : nil, alignment: .leading)
             }
-            .padding(6)
+            .padding(compact ? 5 : 6)
+            .contentShape(Rectangle())
             .background(selectedColor == paint.id ? Color.primary.opacity(0.07) : Color.clear, in: RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).stroke(selectedColor == paint.id ? Color.primary.opacity(0.65) : .clear, lineWidth: 2))
         }
@@ -246,16 +342,25 @@ struct PixelBoard: View {
     let puzzle: Puzzle
     let filled: Set<Int>
     let selectedColor: Int
-    let zoom: CGFloat
-    let isPinching: Bool
+    @Binding var zoom: CGFloat
+    let maximumZoom: CGFloat
     @Binding var hint: Int?
+    var margin: CGFloat = 24
     let onPaint: ([Int], PaintInteraction) -> Void
+    @GestureState private var pinchMagnification: CGFloat?
+
+    private func zoomLevel(for magnification: CGFloat) -> CGFloat {
+        min(maximumZoom, max(1, zoom * magnification))
+    }
 
     var body: some View {
         GeometryReader { geometry in
             let minimumUnit: CGFloat = puzzle.width > 16 ? 4 : 20
-            let unit = max(minimumUnit, min((geometry.size.width - 48) / CGFloat(puzzle.width),
-                                           (geometry.size.height - 48) / CGFloat(puzzle.height))) * zoom
+            let unit = max(minimumUnit, min((geometry.size.width - 2 * margin) / CGFloat(puzzle.width),
+                                           (geometry.size.height - 2 * margin) / CGFloat(puzzle.height))) * zoom
+            let boardWidth = CGFloat(puzzle.width) * unit
+            let boardHeight = CGFloat(puzzle.height) * unit
+            let previewScale = pinchMagnification.map { zoomLevel(for: $0) / zoom } ?? 1
             ScrollViewReader { proxy in
                 ScrollView([.horizontal, .vertical]) {
                     LazyVGrid(columns: (0..<puzzle.tileColumns).map { column in
@@ -270,14 +375,18 @@ struct PixelBoard: View {
                                 .id(tile.id)
                         }
                     }
-                    .frame(width: CGFloat(puzzle.width) * unit)
+                    .frame(width: boardWidth, height: boardHeight, alignment: .topLeading)
                     .background {
-                        CanvasTouchInput(isPinching: isPinching) { start, end, interaction in
+                        CanvasTouchInput(isPinching: pinchMagnification != nil) { start, end, interaction in
                             onPaint(puzzle.strokeIndices(from: start, to: end, unit: unit), interaction)
                         }
                         .allowsHitTesting(false)
                     }
-                    .padding(24)
+                    // Keep tile sizes fixed until release. The outer frame gives
+                    // the scroll view the same extent as the scaled preview.
+                    .scaleEffect(previewScale, anchor: .topLeading)
+                    .frame(width: boardWidth * previewScale, height: boardHeight * previewScale, alignment: .topLeading)
+                    .padding(margin)
                     .frame(minWidth: geometry.size.width, minHeight: geometry.size.height)
                 }
                 .defaultScrollAnchor(.center)
@@ -288,6 +397,13 @@ struct PixelBoard: View {
                 }
             }
         }
+        .simultaneousGesture(
+            MagnifyGesture()
+                .updating($pinchMagnification) { value, magnification, _ in
+                    magnification = value.magnification
+                }
+                .onEnded { value in zoom = zoomLevel(for: value.magnification) }
+        )
     }
 }
 
