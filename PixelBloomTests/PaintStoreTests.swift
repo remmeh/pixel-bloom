@@ -2,6 +2,7 @@ import XCTest
 import SwiftUI
 import UIKit
 import AVFoundation
+import Observation
 @testable import PixelBloom
 
 final class PaintStoreTests: XCTestCase {
@@ -81,7 +82,8 @@ final class PaintStoreTests: XCTestCase {
 
     @MainActor
     func testTouchBridgeConnectsInsideSwiftUIBoard() async {
-        let board = PixelBoard(puzzle: Puzzle.detailed[0], filled: [], selectedColor: 1,
+        let puzzle = Puzzle.detailed[0]
+        let board = PixelBoard(puzzle: puzzle, scene: PuzzleProgress(puzzle: puzzle, filled: []), selectedColor: 1,
                                zoom: .constant(3), maximumZoom: 10, hint: .constant(nil), onPaint: { _, _ in })
         let host = UIHostingController(rootView: board)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 900, height: 600))
@@ -167,6 +169,37 @@ final class PaintStoreTests: XCTestCase {
             let reloaded = PaintStore(defaults: defaults)
             XCTAssertEqual(reloaded.filled(in: original), [originalCell])
             XCTAssertEqual(reloaded.filled(in: detailed), [index])
+        }
+    }
+
+    @MainActor
+    func testPaintingNotifiesOnlyTheChangedSceneAndTile() {
+        withDefaults { defaults in
+            let store = PaintStore(defaults: defaults)
+            defer { store.flushPendingSaves() }
+            let puzzle = Puzzle.detailed[0]
+            let scene = store.scene(for: puzzle)
+            let changed = scene.tile(puzzle.tiles[0])
+            let unchanged = scene.tile(puzzle.tiles[1])
+            let otherScene = store.scene(for: Puzzle.detailed[1])
+            let updated = expectation(description: "The painted tile publishes its new cells")
+            withObservationTracking {
+                _ = changed.filled
+            } onChange: {
+                updated.fulfill()
+            }
+            withObservationTracking {
+                _ = unchanged.filled
+                _ = otherScene.fraction
+            } onChange: {
+                XCTFail("Painting invalidated an unrelated tile or scene")
+            }
+            let index = puzzle.tiles[0].indices.first { puzzle.cells[$0] > 0 }!
+            XCTAssertTrue(store.paint(index, color: puzzle.cells[index], in: puzzle))
+            wait(for: [updated], timeout: 0)
+            XCTAssertEqual(changed.filled, [index])
+            store.reset(puzzle)
+            XCTAssertTrue(changed.filled.isEmpty)
         }
     }
 

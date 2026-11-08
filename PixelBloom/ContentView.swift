@@ -54,18 +54,18 @@ struct ContentView: View {
     }
 
     private func puzzleRow(_ puzzle: Puzzle) -> some View {
-        PuzzleRow(puzzle: puzzle, progress: store.progress(in: puzzle))
-            .equatable()
+        PuzzleRow(puzzle: puzzle, scene: store.scene(for: puzzle))
             .tag(puzzle.id)
             .listRowBackground(Color.clear)
     }
 }
 
-private struct PuzzleRow: View, Equatable {
+private struct PuzzleRow: View {
     let puzzle: Puzzle
-    let progress: Double
+    let scene: PuzzleProgress
 
     var body: some View {
+        let progress = scene.fraction
         VStack(alignment: .leading, spacing: 6) {
             Text(puzzle.title).font(.headline)
             Text("\(puzzle.width) × \(puzzle.height) · \(puzzle.palette.count) colors")
@@ -130,7 +130,7 @@ struct ColoringView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button("Start over", systemImage: "arrow.counterclockwise") { showReset = true }
-                    .disabled(store.filled(in: puzzle).isEmpty)
+                    .disabled(store.filledCount(in: puzzle) == 0)
             }
         }
         .task { if soundEnabled { ColoringAudio.shared.prepare() } }
@@ -142,7 +142,7 @@ struct ColoringView: View {
                 message = "A fresh canvas. Choose a color to begin."
             }
         } message: { Text("Your other pictures will keep their progress.") }
-        .sensoryFeedback(.selection, trigger: store.filled(in: puzzle).count)
+        .sensoryFeedback(.selection, trigger: store.filledCount(in: puzzle))
     }
 
     @ViewBuilder
@@ -170,7 +170,7 @@ struct ColoringView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 6) {
                     progressPercent.font(.system(.title2, design: .rounded, weight: .semibold))
-                    Text("\(store.filled(in: puzzle).count) / \(puzzle.paintable.count) pixels")
+                    Text("\(store.filledCount(in: puzzle)) / \(puzzle.paintable.count) pixels")
                         .font(.caption).foregroundStyle(secondaryInk)
                 }
             }
@@ -217,7 +217,7 @@ struct ColoringView: View {
     }
 
     private func canvas(compact: Bool) -> some View {
-        PixelBoard(puzzle: puzzle, filled: store.filled(in: puzzle), selectedColor: selectedColor,
+        PixelBoard(puzzle: puzzle, scene: store.scene(for: puzzle), selectedColor: selectedColor,
                    zoom: $zoom, maximumZoom: maximumZoom, hint: $hint, margin: compact ? 12 : 24) { indices, interaction in
             let added = store.paint(indices, color: selectedColor, in: puzzle)
             if added > 0 {
@@ -340,7 +340,7 @@ struct ColoringView: View {
 
 struct PixelBoard: View {
     let puzzle: Puzzle
-    let filled: Set<Int>
+    let scene: PuzzleProgress
     let selectedColor: Int
     @Binding var zoom: CGFloat
     let maximumZoom: CGFloat
@@ -367,7 +367,7 @@ struct PixelBoard: View {
                         GridItem(.fixed(CGFloat(min(Puzzle.tileSize, puzzle.width - column * Puzzle.tileSize)) * unit), spacing: 0)
                     }, spacing: 0) {
                         ForEach(puzzle.tiles) { tile in
-                            PixelTile(puzzle: puzzle, tile: tile, filled: filled.intersection(tile.indices),
+                            PixelTile(puzzle: puzzle, tile: tile, progress: scene.tile(tile),
                                       selectedColor: selectedColor, unit: unit,
                                       hint: hint.flatMap { tile.indices.contains($0) ? $0 : nil },
                                       onPaint: { onPaint([$0], .tap) })
@@ -412,7 +412,7 @@ struct PixelBoard: View {
 private struct PixelTile: View, Equatable {
     let puzzle: Puzzle
     let tile: Puzzle.Tile
-    let filled: Set<Int>
+    let progress: TileProgress
     let selectedColor: Int
     let unit: CGFloat
     let hint: Int?
@@ -420,45 +420,50 @@ private struct PixelTile: View, Equatable {
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.puzzle.id == rhs.puzzle.id && lhs.tile.id == rhs.tile.id &&
-        lhs.filled == rhs.filled && lhs.selectedColor == rhs.selectedColor &&
+        lhs.progress === rhs.progress && lhs.selectedColor == rhs.selectedColor &&
         lhs.unit == rhs.unit && lhs.hint == rhs.hint
     }
 
     var body: some View {
+        let filled = progress.filled
         Canvas { context, _ in
             var labels: [Int: GraphicsContext.ResolvedText] = [:]
-            if unit >= 11 {
-                for paint in puzzle.palette {
-                    let size = min(22, unit * (paint.id >= 10 ? 0.34 : 0.42))
-                    labels[paint.id] = context.resolve(Text("\(paint.id)")
-                        .font(.system(size: size, weight: selectedColor == paint.id ? .bold : .regular, design: .rounded))
-                        .foregroundStyle(selectedColor == paint.id ? Color.primary : secondaryInk))
-                }
-            }
-            var grid = Path()
             for index in tile.indices {
                 let number = puzzle.cells[index]
                 guard number > 0 else { continue }
-                let rect = CGRect(x: CGFloat(index % puzzle.width - tile.column) * unit,
-                                  y: CGFloat(index / puzzle.width - tile.row) * unit,
-                                  width: unit, height: unit)
+                let rect = tile.cellRect(index, boardWidth: puzzle.width, unit: unit)
                 let paint = puzzle.colorsByNumber[number]?.color ?? .gray
                 let isFilled = filled.contains(index)
                 context.fill(Path(rect), with: .color(isFilled ? paint : (selectedColor == number ? paint.opacity(0.18) : .white)))
-                if !isFilled, let label = labels[number] {
+                if !isFilled, unit >= 11 {
+                    let label: GraphicsContext.ResolvedText
+                    if let cached = labels[number] {
+                        label = cached
+                    } else {
+                        let size = min(22, unit * (number >= 10 ? 0.34 : 0.42))
+                        label = context.resolve(Text("\(number)")
+                            .font(.system(size: size, weight: selectedColor == number ? .bold : .regular, design: .rounded))
+                            .foregroundStyle(selectedColor == number ? Color.primary : secondaryInk))
+                        labels[number] = label
+                    }
                     context.draw(label, at: CGPoint(x: rect.midX, y: rect.midY))
                 }
-                if unit >= 10 { grid.addRect(rect) }
-            }
-            context.stroke(grid, with: .color(.black.opacity(0.09)), lineWidth: 0.5)
-            if let hint {
-                let rect = CGRect(x: CGFloat(hint % puzzle.width - tile.column) * unit + 1.5,
-                                  y: CGFloat(hint / puzzle.width - tile.row) * unit + 1.5,
-                                  width: unit - 3, height: unit - 3)
-                context.stroke(Path(rect), with: .color(.primary), lineWidth: 3)
             }
         }
         .frame(width: CGFloat(tile.width) * unit, height: CGFloat(tile.height) * unit)
+        .overlay {
+            if unit >= 10 {
+                TileGridLines(puzzle: puzzle, tile: tile, unit: unit).equatable()
+            }
+        }
+        .overlay {
+            if let hint {
+                Path(tile.cellRect(hint, boardWidth: puzzle.width, unit: unit).insetBy(dx: 1.5, dy: 1.5))
+                    .stroke(.primary, lineWidth: 3)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .accessibilityChildren {
             ForEach(tile.indices.filter { puzzle.cells[$0] > 0 }, id: \.self) { index in
                 Button { onPaint(index) } label: {
@@ -467,6 +472,36 @@ private struct PixelTile: View, Equatable {
                 .accessibilityHint(filled.contains(index) ? "Already colored" : "Select color \(puzzle.cells[index]), then activate to fill")
             }
         }
+    }
+}
+
+// Grid geometry depends on the artwork and cell size, so strokes can reuse it.
+private struct TileGridLines: View, Equatable {
+    let puzzle: Puzzle
+    let tile: Puzzle.Tile
+    let unit: CGFloat
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.puzzle.id == rhs.puzzle.id && lhs.tile.id == rhs.tile.id && lhs.unit == rhs.unit
+    }
+
+    var body: some View {
+        Path { path in
+            for index in tile.indices where puzzle.cells[index] > 0 {
+                path.addRect(tile.cellRect(index, boardWidth: puzzle.width, unit: unit))
+            }
+        }
+        .stroke(.black.opacity(0.09), lineWidth: 0.5)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private extension Puzzle.Tile {
+    func cellRect(_ index: Int, boardWidth: Int, unit: CGFloat) -> CGRect {
+        CGRect(x: CGFloat(index % boardWidth - column) * unit,
+               y: CGFloat(index / boardWidth - row) * unit,
+               width: unit, height: unit)
     }
 }
 

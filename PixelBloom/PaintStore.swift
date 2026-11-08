@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 
 // UserDefaults supports concurrent access; all writes from this helper are serialized.
 // Pending snapshots and worker state are protected by the lock.
@@ -44,7 +45,8 @@ private final class ProgressPersistence: @unchecked Sendable {
 
 @MainActor
 final class PaintStore: ObservableObject {
-    @Published private(set) var completed: [String: Set<Int>]
+    private var completed: [String: Set<Int>]
+    private var scenes: [String: PuzzleProgress] = [:]
     private let key = "pixelbloom.progress.v1"
     private let persistence: ProgressPersistence
 
@@ -62,13 +64,20 @@ final class PaintStore: ObservableObject {
         })
     }
 
+    func scene(for puzzle: Puzzle) -> PuzzleProgress {
+        if let scene = scenes[puzzle.id] { return scene }
+        let scene = PuzzleProgress(puzzle: puzzle, filled: completed[puzzle.id] ?? [])
+        scenes[puzzle.id] = scene
+        return scene
+    }
+
     func filled(in puzzle: Puzzle) -> Set<Int> { completed[puzzle.id] ?? [] }
+    func filledCount(in puzzle: Puzzle) -> Int { scene(for: puzzle).filledCount }
     func progress(in puzzle: Puzzle) -> Double {
-        guard !puzzle.paintable.isEmpty else { return 1 }
-        return Double(filled(in: puzzle).count) / Double(puzzle.paintable.count)
+        scene(for: puzzle).fraction
     }
     func remaining(_ color: Int, in puzzle: Puzzle) -> Int {
-        (puzzle.cellsByColor[color] ?? []).subtracting(filled(in: puzzle)).count
+        scene(for: puzzle).remainingByColor[color, default: 0]
     }
     @discardableResult
     func paint(_ index: Int, color: Int, in puzzle: Puzzle) -> Bool {
@@ -78,15 +87,15 @@ final class PaintStore: ObservableObject {
     @discardableResult
     func paint(_ indices: [Int], color: Int, in puzzle: Puzzle) -> Int {
         guard color > 0 else { return 0 }
-        let matching = Set(indices).intersection(puzzle.cellsByColor[color] ?? [])
-        let additions = matching.subtracting(filled(in: puzzle))
-        guard !additions.isEmpty else { return 0 }
-        // Publish and save once per touch sample, even if it crosses many cells.
-        completed[puzzle.id, default: []].formUnion(additions)
+        let scene = scene(for: puzzle)
+        let added = scene.paint(indices, color: color)
+        guard added > 0 else { return 0 }
+        completed[puzzle.id] = scene.filled
         save()
-        return additions.count
+        return added
     }
     func reset(_ puzzle: Puzzle) {
+        scene(for: puzzle).reset()
         completed[puzzle.id] = []
         save()
     }
@@ -98,5 +107,73 @@ final class PaintStore: ObservableObject {
     // Drain pending writes when leaving the app, and before testing a fresh store.
     func flushPendingSaves() {
         persistence.flush()
+    }
+}
+
+@MainActor
+@Observable
+final class PuzzleProgress {
+    private let puzzle: Puzzle
+    @ObservationIgnored private(set) var filled: Set<Int>
+    @ObservationIgnored private var tiles: [Int: TileProgress] = [:]
+    private(set) var filledCount: Int
+    private(set) var remainingByColor: [Int: Int]
+
+    init(puzzle: Puzzle, filled: Set<Int>) {
+        self.puzzle = puzzle
+        self.filled = filled
+        filledCount = filled.count
+        var counts = puzzle.cellsByColor.mapValues(\.count)
+        for index in filled {
+            counts[puzzle.cells[index], default: 0] -= 1
+        }
+        remainingByColor = counts
+    }
+
+    var fraction: Double {
+        guard !puzzle.paintable.isEmpty else { return 1 }
+        return Double(filledCount) / Double(puzzle.paintable.count)
+    }
+
+    func tile(_ tile: Puzzle.Tile) -> TileProgress {
+        if let progress = tiles[tile.id] { return progress }
+        let progress = TileProgress(filled: filled.intersection(tile.indices))
+        tiles[tile.id] = progress
+        return progress
+    }
+
+    fileprivate func paint(_ indices: [Int], color: Int) -> Int {
+        var added = 0
+        var changedTiles: [Int: [Int]] = [:]
+        for index in indices where puzzle.cells.indices.contains(index) && puzzle.cells[index] == color {
+            guard !filled.contains(index) else { continue }
+            filled.insert(index)
+            added += 1
+            let tileID = puzzle.tileID(containing: index)
+            if tiles[tileID] != nil { changedTiles[tileID, default: []].append(index) }
+        }
+        guard added > 0 else { return 0 }
+        filledCount += added
+        remainingByColor[color, default: 0] -= added
+        for (id, cells) in changedTiles { tiles[id]?.filled.formUnion(cells) }
+        return added
+    }
+
+    fileprivate func reset() {
+        guard !filled.isEmpty else { return }
+        filled = []
+        filledCount = 0
+        remainingByColor = puzzle.cellsByColor.mapValues(\.count)
+        for tile in tiles.values where !tile.filled.isEmpty { tile.filled = [] }
+    }
+}
+
+@MainActor
+@Observable
+final class TileProgress {
+    fileprivate(set) var filled: Set<Int>
+
+    fileprivate init(filled: Set<Int>) {
+        self.filled = filled
     }
 }
