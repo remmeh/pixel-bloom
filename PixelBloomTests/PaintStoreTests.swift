@@ -57,7 +57,7 @@ final class PaintStoreTests: XCTestCase {
     func testSecondFingerAndPinchDoNotContinuePaintStroke() {
         let input = CanvasTouchView()
         var segments: [(CGPoint, CGPoint)] = []
-        input.onStroke = { start, end, _ in segments.append((start, end)) }
+        input.onStroke = { start, end, _, _ in segments.append((start, end)) }
         let first = CGPoint(x: 5, y: 5)
         let second = CGPoint(x: 25, y: 5)
         input.handlePaintPan(state: .began, touches: 1, point: first, start: .zero)
@@ -235,6 +235,28 @@ final class PaintStoreTests: XCTestCase {
         XCTAssertTrue(puzzle.strokeIndices(from: CGPoint(x: -1, y: -1), to: CGPoint(x: -1, y: -1), unit: 10).isEmpty)
         XCTAssertTrue(puzzle.strokeIndices(from: CGPoint(x: 180, y: 0), to: CGPoint(x: 180, y: 0), unit: 10).isEmpty)
         XCTAssertTrue(puzzle.strokeIndices(from: .zero, to: .zero, unit: 0).isEmpty)
+    }
+
+    @MainActor
+    func testFirmContactWidensStrokeAndKeepsPaintingWithinTheBoard() {
+        withDefaults { defaults in
+            let puzzle = Puzzle(id: "brush", title: "Brush", subtitle: "", symbol: "",
+                                rows: ["11111", "11211", "11.11", "11111", "11111"],
+                                palette: [PaintColor(id: 1, name: "One", hex: 0),
+                                          PaintColor(id: 2, name: "Two", hex: 0)])
+            let start = CGPoint(x: 5, y: 15)
+            let end = CGPoint(x: 45, y: 15)
+            XCTAssertEqual(puzzle.strokeIndices(from: start, to: end, unit: 10, contactRadius: 10), Array(5..<10))
+            let broad = puzzle.strokeIndices(from: start, to: end, unit: 10, contactRadius: 20)
+            XCTAssertEqual(Set(broad), Set(0..<15).subtracting([12]))
+            XCTAssertEqual(broad.count, Set(broad).count)
+
+            let store = PaintStore(defaults: defaults)
+            defer { store.flushPendingSaves() }
+            XCTAssertEqual(store.paint(broad, color: 1, in: puzzle), 13)
+            XCTAssertFalse(store.filled(in: puzzle).contains(7))
+            XCTAssertEqual(puzzle.strokeIndices(from: start, to: end, unit: 10, contactRadius: .nan), Array(5..<10))
+        }
     }
 
     @MainActor

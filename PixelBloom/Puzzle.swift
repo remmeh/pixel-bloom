@@ -43,20 +43,40 @@ struct Puzzle: Identifiable, Equatable {
 
     // Sample at half-cell intervals so fast strokes also cover intervening cells.
     // Coordinates belong to the grid itself, before its surrounding padding.
-    func strokeIndices(from start: CGPoint, to end: CGPoint, unit: CGFloat) -> [Int] {
+    func strokeIndices(from start: CGPoint, to end: CGPoint, unit: CGFloat, contactRadius: CGFloat = 0) -> [Int] {
         guard unit.isFinite, unit > 0, start.x.isFinite, start.y.isFinite,
               end.x.isFinite, end.y.isFinite else { return [] }
+        // Ignore light contact and cap the extra reach to two cells at any zoom.
+        let radius = contactRadius.isFinite ? min(2, max(0, contactRadius - 12) * 1.25 / unit) : 0
         let distance = max(abs(end.x - start.x), abs(end.y - start.y))
         let steps = max(1, Int(ceil(distance / unit * 2)))
         var visited: Set<Int> = []
         var result: [Int] = []
         for step in 0...steps {
             let fraction = CGFloat(step) / CGFloat(steps)
-            let x = start.x + (end.x - start.x) * fraction
-            let y = start.y + (end.y - start.y) * fraction
-            guard x >= 0, y >= 0, x < CGFloat(width) * unit, y < CGFloat(height) * unit else { continue }
-            let index = Int(y / unit) * width + Int(x / unit)
-            if cells[index] > 0, visited.insert(index).inserted { result.append(index) }
+            let x = (start.x + (end.x - start.x) * fraction) / unit
+            let y = (start.y + (end.y - start.y) * fraction) / unit
+            guard x + radius >= 0, y + radius >= 0,
+                  x - radius < CGFloat(width), y - radius < CGFloat(height) else { continue }
+            if radius == 0 {
+                let index = Int(y) * width + Int(x)
+                if cells[index] > 0, visited.insert(index).inserted { result.append(index) }
+                continue
+            }
+            let columns = Int(max(0, x - radius))...Int(min(CGFloat(width - 1), x + radius))
+            let rows = Int(max(0, y - radius))...Int(min(CGFloat(height - 1), y + radius))
+            for row in rows {
+                for column in columns {
+                    let index = row * width + column
+                    guard cells[index] > 0 else { continue }
+                    // Distance to the cell rectangle keeps the footprint round.
+                    let dx = max(0, CGFloat(column) - x, x - CGFloat(column + 1))
+                    let dy = max(0, CGFloat(row) - y, y - CGFloat(row + 1))
+                    if dx * dx + dy * dy <= radius * radius, visited.insert(index).inserted {
+                        result.append(index)
+                    }
+                }
+            }
         }
         return result
     }

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UIKit.UIGestureRecognizerSubclass
 
 private let paper = Color(red: 0.97, green: 0.96, blue: 0.93)
 private let secondaryInk = Color(red: 0.35, green: 0.36, blue: 0.32)
@@ -377,8 +378,8 @@ struct PixelBoard: View {
                     }
                     .frame(width: boardWidth, height: boardHeight, alignment: .topLeading)
                     .background {
-                        CanvasTouchInput(isPinching: pinchMagnification != nil) { start, end, interaction in
-                            onPaint(puzzle.strokeIndices(from: start, to: end, unit: unit), interaction)
+                        CanvasTouchInput(isPinching: pinchMagnification != nil) { start, end, radius, interaction in
+                            onPaint(puzzle.strokeIndices(from: start, to: end, unit: unit, contactRadius: radius), interaction)
                         }
                         .allowsHitTesting(false)
                     }
@@ -510,7 +511,7 @@ private extension Puzzle.Tile {
 // to pan with three fingers while a separate recognizer paints with one.
 struct CanvasTouchInput: UIViewRepresentable {
     let isPinching: Bool
-    let onStroke: (CGPoint, CGPoint, PaintInteraction) -> Void
+    let onStroke: (CGPoint, CGPoint, CGFloat, PaintInteraction) -> Void
 
     func makeUIView(context: Context) -> CanvasTouchView {
         CanvasTouchView()
@@ -528,23 +529,23 @@ struct CanvasTouchInput: UIViewRepresentable {
 }
 
 final class CanvasTouchView: UIView, UIGestureRecognizerDelegate {
-    var onStroke: (CGPoint, CGPoint, PaintInteraction) -> Void = { _, _, _ in }
+    var onStroke: (CGPoint, CGPoint, CGFloat, PaintInteraction) -> Void = { _, _, _, _ in }
     var isPinching = false {
         didSet { if isPinching { lastPoint = nil } }
     }
     private(set) weak var connectedScrollView: UIScrollView?
     private var previousMinimumTouches = 1
     private var lastPoint: CGPoint?
-    private(set) lazy var paintPan: UIPanGestureRecognizer = {
-        let gesture = UIPanGestureRecognizer(target: self, action: #selector(paintDragged(_:)))
+    private(set) lazy var paintPan: FingerPaintPan = {
+        let gesture = FingerPaintPan(target: self, action: #selector(paintDragged(_:)))
         gesture.minimumNumberOfTouches = 1
         gesture.maximumNumberOfTouches = 1
         gesture.cancelsTouchesInView = false
         gesture.delegate = self
         return gesture
     }()
-    private(set) lazy var paintTap: UITapGestureRecognizer = {
-        let gesture = UITapGestureRecognizer(target: self, action: #selector(paintTapped(_:)))
+    private(set) lazy var paintTap: FingerPaintTap = {
+        let gesture = FingerPaintTap(target: self, action: #selector(paintTapped(_:)))
         gesture.numberOfTouchesRequired = 1
         gesture.cancelsTouchesInView = false
         gesture.delegate = self
@@ -612,39 +613,83 @@ final class CanvasTouchView: UIView, UIGestureRecognizerDelegate {
         gestureRecognizer === paintPan || other === paintPan
     }
 
-    @objc private func paintTapped(_ gesture: UITapGestureRecognizer) {
+    @objc private func paintTapped(_ gesture: FingerPaintTap) {
         guard gesture.state == .ended, !isPinching else { return }
         let point = gesture.location(in: self)
-        onStroke(point, point, .tap)
+        onStroke(point, point, gesture.contactRadius, .tap)
     }
 
-    @objc private func paintDragged(_ gesture: UIPanGestureRecognizer) {
+    @objc private func paintDragged(_ gesture: FingerPaintPan) {
         let point = gesture.location(in: self)
         let translation = gesture.translation(in: self)
         handlePaintPan(state: gesture.state, touches: gesture.numberOfTouches, point: point,
-                       start: CGPoint(x: point.x - translation.x, y: point.y - translation.y))
+                       start: CGPoint(x: point.x - translation.x, y: point.y - translation.y),
+                       contactRadius: gesture.contactRadius)
     }
 
     // Shared with tests to verify that a second touch or cancellation ends the
     // stroke, without joining it to the next one-finger stroke.
-    func handlePaintPan(state: UIGestureRecognizer.State, touches: Int, point: CGPoint, start: CGPoint) {
+    func handlePaintPan(state: UIGestureRecognizer.State, touches: Int, point: CGPoint, start: CGPoint,
+                        contactRadius: CGFloat = 0) {
         guard !isPinching, touches <= 1 else { lastPoint = nil; return }
         switch state {
         case .began:
             guard touches == 1 else { return }
             lastPoint = point
-            onStroke(start, point, .drag)
+            onStroke(start, point, contactRadius, .drag)
         case .changed:
             guard touches == 1, let previous = lastPoint else { return }
             lastPoint = point
-            onStroke(previous, point, .drag)
+            onStroke(previous, point, contactRadius, .drag)
         case .ended:
-            if let previous = lastPoint { onStroke(previous, point, .drag) }
+            if let previous = lastPoint { onStroke(previous, point, contactRadius, .drag) }
             lastPoint = nil
         case .cancelled, .failed:
             lastPoint = nil
         default:
             break
         }
+    }
+}
+
+// Read contact size from the same touches the system recognizers already track.
+// Other input types, including Apple Pencil, keep their precise brush.
+final class FingerPaintPan: UIPanGestureRecognizer {
+    private(set) var contactRadius: CGFloat = 0
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        contactRadius = touches.first(where: { $0.type == .direct })?.majorRadius ?? 0
+        super.touchesBegan(touches, with: event)
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        contactRadius = touches.first(where: { $0.type == .direct })?.majorRadius ?? 0
+        super.touchesMoved(touches, with: event)
+    }
+
+    override func reset() {
+        super.reset()
+        contactRadius = 0
+    }
+}
+
+final class FingerPaintTap: UITapGestureRecognizer {
+    private(set) var contactRadius: CGFloat = 0
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        contactRadius = touches.first(where: { $0.type == .direct })?.majorRadius ?? 0
+        super.touchesBegan(touches, with: event)
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        if let finger = touches.first(where: { $0.type == .direct }) {
+            contactRadius = max(contactRadius, finger.majorRadius)
+        }
+        super.touchesMoved(touches, with: event)
+    }
+
+    override func reset() {
+        super.reset()
+        contactRadius = 0
     }
 }
