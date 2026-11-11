@@ -6,6 +6,69 @@ import Observation
 @testable import PixelBloom
 
 final class PaintStoreTests: XCTestCase {
+    @MainActor
+    func testGeneratedArtworkBecomesAPlayableSceneAndKeepsProgress() throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 64, height: 64), format: format)
+        let data = renderer.pngData { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 64, height: 32))
+            UIColor.blue.setFill()
+            context.fill(CGRect(x: 0, y: 32, width: 64, height: 32))
+        }
+        let draft = try GeneratedScene.make(from: data)
+        XCTAssertEqual(draft.title, "Created scene")
+        let generated = draft.named("  Two colors  ")
+        XCTAssertEqual(try GeneratedScene.make(from: data).title, "Created scene")
+        try withDefaults { defaults in
+            let store = PaintStore(defaults: defaults)
+            let puzzle = try store.addGeneratedScene(generated)
+            XCTAssertEqual(puzzle.title, "Two colors")
+            XCTAssertEqual(puzzle.width, 64)
+            XCTAssertEqual(puzzle.height, 64)
+            XCTAssertEqual(puzzle.paintable.count, 4096)
+            XCTAssertEqual(puzzle.palette.count, 2)
+            XCTAssertEqual(puzzle.colorsByNumber[puzzle.cells[0]]?.hex, 0xFF0000)
+            XCTAssertEqual(puzzle.colorsByNumber[puzzle.cells[4095]]?.hex, 0x0000FF)
+            XCTAssertTrue(store.paint(0, color: puzzle.cells[0], in: puzzle))
+            store.flushPendingSaves()
+
+            let reloaded = PaintStore(defaults: defaults)
+            XCTAssertEqual(reloaded.generatedPuzzles, [puzzle])
+            XCTAssertEqual(reloaded.filled(in: puzzle), [0])
+            XCTAssertThrowsError(try reloaded.addGeneratedScene(generated))
+        }
+    }
+
+    @MainActor
+    func testDeletingGeneratedSceneRemovesItsSavedProgressOnly() throws {
+        try withDefaults { defaults in
+            let rows = Array(repeating: String(repeating: "1", count: 64), count: 64)
+            let store = PaintStore(defaults: defaults)
+            let deleted = try store.addGeneratedScene(GeneratedScene(id: UUID(), title: "Delete", rows: rows, colors: [0]))
+            let kept = try store.addGeneratedScene(GeneratedScene(id: UUID(), title: "Keep", rows: rows, colors: [0]))
+            let builtIn = Puzzle.detailed[0]
+            let builtInCell = try XCTUnwrap(builtIn.paintable.min())
+            XCTAssertTrue(store.paint(builtInCell, color: builtIn.cells[builtInCell], in: builtIn))
+            XCTAssertTrue(store.paint(0, color: 1, in: deleted))
+            XCTAssertTrue(store.paint(0, color: 1, in: kept))
+            try store.deleteGeneratedScene(id: deleted.id)
+            try store.deleteGeneratedScene(id: builtIn.id)
+            store.flushPendingSaves()
+
+            XCTAssertEqual(store.generatedPuzzles, [kept])
+            XCTAssertTrue(store.filled(in: deleted).isEmpty)
+            let reloaded = PaintStore(defaults: defaults)
+            XCTAssertEqual(reloaded.generatedPuzzles, [kept])
+            XCTAssertEqual(reloaded.filled(in: kept), [0])
+            XCTAssertEqual(reloaded.filled(in: builtIn), [builtInCell])
+            let savedProgress = try XCTUnwrap(defaults.data(forKey: "pixelbloom.progress.v1"))
+            let decoded = try JSONDecoder().decode([String: Set<Int>].self, from: savedProgress)
+            XCTAssertNil(decoded[deleted.id])
+        }
+    }
+
     func testSoundFeedbackSkipsInvalidPaintingAndPacesSwipes() {
         var feedback = ColoringSoundFeedback()
         XCTAssertNil(feedback.painted(added: 0, remaining: 10, interaction: .tap, now: 0))

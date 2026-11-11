@@ -45,12 +45,17 @@ private final class ProgressPersistence: @unchecked Sendable {
 
 @MainActor
 final class PaintStore: ObservableObject {
+    @Published private(set) var generatedPuzzles: [Puzzle] = []
     private var completed: [String: Set<Int>]
     private var scenes: [String: PuzzleProgress] = [:]
+    private var generatedScenes: [GeneratedScene] = []
     private let key = "pixelbloom.progress.v1"
+    private let generatedKey = "pixelbloom.generated-scenes.v1"
+    private let defaults: UserDefaults
     private let persistence: ProgressPersistence
 
     init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         persistence = ProgressPersistence(defaults: defaults, key: key)
         if let data = defaults.data(forKey: key),
            let saved = try? JSONDecoder().decode([String: Set<Int>].self, from: data) {
@@ -58,10 +63,45 @@ final class PaintStore: ObservableObject {
         } else {
             completed = [:]
         }
-        // Discard obsolete or invalid saved cells when artwork changes.
-        completed = Dictionary(uniqueKeysWithValues: Puzzle.all.map { puzzle in
+        if let data = defaults.data(forKey: generatedKey),
+           let saved = try? JSONDecoder().decode([GeneratedScene].self, from: data) {
+            var seen: Set<UUID> = []
+            for scene in saved where seen.insert(scene.id).inserted {
+                guard let puzzle = scene.puzzle() else { continue }
+                generatedScenes.append(scene)
+                generatedPuzzles.append(puzzle)
+            }
+        }
+        // Load generated artwork before validating its saved coloring progress.
+        completed = Dictionary(uniqueKeysWithValues: (Puzzle.all + generatedPuzzles).map { puzzle in
             (puzzle.id, (completed[puzzle.id] ?? []).intersection(puzzle.paintable))
         })
+    }
+
+    func addGeneratedScene(_ scene: GeneratedScene) throws -> Puzzle {
+        guard let puzzle = scene.puzzle(),
+              !generatedScenes.contains(where: { $0.id == scene.id }) else {
+            throw GeneratedSceneError.invalidScene
+        }
+        let updated = [scene] + generatedScenes
+        let data = try JSONEncoder().encode(updated)
+        defaults.set(data, forKey: generatedKey)
+        generatedScenes = updated
+        generatedPuzzles.insert(puzzle, at: 0)
+        return puzzle
+    }
+
+    func deleteGeneratedScene(id: String) throws {
+        guard let index = generatedScenes.firstIndex(where: { $0.puzzleID == id }) else { return }
+        var updated = generatedScenes
+        updated.remove(at: index)
+        let data = try JSONEncoder().encode(updated)
+        defaults.set(data, forKey: generatedKey)
+        generatedScenes = updated
+        completed.removeValue(forKey: id)
+        scenes.removeValue(forKey: id)
+        generatedPuzzles.removeAll { $0.id == id }
+        save()
     }
 
     func scene(for puzzle: Puzzle) -> PuzzleProgress {

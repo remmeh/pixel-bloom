@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8758DD34C362881268DEDCDF /* GeneratedScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902E984973388F0B5C46ACE8 /* GeneratedScene.swift */; };
 		0DF05C4B29C6AE7A5AA33E44 /* CharacterScenes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF9C6E3EE4872F529C9613 /* CharacterScenes.swift */; };
 		AD5458ED5978139F4977C991 /* ColoringAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = F652F00C9CC239B898BF5E04 /* ColoringAudio.swift */; };
 		A11000000000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000002 /* Assets.xcassets */; };
@@ -28,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		902E984973388F0B5C46ACE8 /* GeneratedScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedScene.swift; sourceTree = "<group>"; };
 		D5AF9C6E3EE4872F529C9613 /* CharacterScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterScenes.swift; sourceTree = "<group>"; };
 		F652F00C9CC239B898BF5E04 /* ColoringAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColoringAudio.swift; sourceTree = "<group>"; };
 		A11000000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -79,6 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				F652F00C9CC239B898BF5E04 /* ColoringAudio.swift */,
+				902E984973388F0B5C46ACE8 /* GeneratedScene.swift */,
 				D5AF9C6E3EE4872F529C9613 /* CharacterScenes.swift */,
 				B1FC9241A06CDDF2603BE3AA /* PixelBloomApp.swift */,
 				ED4EDD337446DD7F7050CB59 /* Puzzle.swift */,
@@ -188,6 +191,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AD5458ED5978139F4977C991 /* ColoringAudio.swift in Sources */,
+				8758DD34C362881268DEDCDF /* GeneratedScene.swift in Sources */,
 				0DF05C4B29C6AE7A5AA33E44 /* CharacterScenes.swift in Sources */,
 				E578222D24CB7C5437331440 /* PixelBloomApp.swift in Sources */,
 				514FF5EADC0CA7FFA047590F /* Puzzle.swift in Sources */,

@@ -8,10 +8,34 @@ private let secondaryInk = Color(red: 0.35, green: 0.36, blue: 0.32)
 struct ContentView: View {
     @EnvironmentObject private var store: PaintStore
     @State private var selectedID: String? = Puzzle.all.first?.id
+    @State private var isCreatingScene = false
+    @State private var sceneToDelete: Puzzle?
+    @State private var showsDeleteError = false
     var body: some View {
         GeometryReader { geometry in
             NavigationSplitView {
                 List(selection: $selectedID) {
+                    Section("My scenes") {
+                        Button {
+                            isCreatingScene = true
+                        } label: {
+                            Label("Create a scene", systemImage: "sparkles")
+                        }
+                        ForEach(store.generatedPuzzles) { puzzle in
+                            puzzleRow(puzzle)
+                                .swipeActions(allowsFullSwipe: false) {
+                                    Button { sceneToDelete = puzzle } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                    .tint(.red)
+                                }
+                                .contextMenu {
+                                    Button(role: .destructive) { sceneToDelete = puzzle } label: {
+                                        Label("Delete scene", systemImage: "trash")
+                                    }
+                                }
+                        }
+                    }
                     Section("Detailed scenes") {
                         ForEach(Puzzle.detailed) { puzzle in
                             puzzleRow(puzzle)
@@ -43,7 +67,8 @@ struct ContentView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
                 }
             } detail: {
-                if let puzzle = Puzzle.all.first(where: { $0.id == selectedID }) {
+                if let puzzle = store.generatedPuzzles.first(where: { $0.id == selectedID })
+                    ?? Puzzle.all.first(where: { $0.id == selectedID }) {
                     ColoringView(puzzle: puzzle, prefersSidePalette: geometry.size.width > geometry.size.height).id(puzzle.id)
                 } else {
                     ContentUnavailableView("Choose a picture", systemImage: "square.grid.3x3", description: Text("Your next little masterpiece is waiting."))
@@ -52,6 +77,33 @@ struct ContentView: View {
         }
         // The canvas uses fixed light paper colors, so its text and controls need a matching appearance.
         .preferredColorScheme(.light)
+        .sheet(isPresented: $isCreatingScene) {
+            CreateSceneView { scene in
+                selectedID = try store.addGeneratedScene(scene).id
+            }
+        }
+        .alert("Delete this scene?", isPresented: Binding(get: { sceneToDelete != nil }, set: {
+            if !$0 { sceneToDelete = nil }
+        }), presenting: sceneToDelete) { puzzle in
+            Button("Delete", role: .destructive) { deleteScene(puzzle) }
+            Button("Cancel", role: .cancel) {}
+        } message: { puzzle in
+            Text("“\(puzzle.title)” and its coloring progress will be removed.")
+        }
+        .alert("Couldn’t delete scene", isPresented: $showsDeleteError) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    private func deleteScene(_ puzzle: Puzzle) {
+        do {
+            try store.deleteGeneratedScene(id: puzzle.id)
+            if selectedID == puzzle.id {
+                selectedID = store.generatedPuzzles.first?.id ?? Puzzle.all.first?.id
+            }
+        } catch {
+            showsDeleteError = true
+        }
     }
 
     private func puzzleRow(_ puzzle: Puzzle) -> some View {
