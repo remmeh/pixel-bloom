@@ -36,16 +36,79 @@ struct ColoringSoundFeedback {
 final class ColoringAudio {
     static let shared = ColoringAudio()
     private var feedback = ColoringSoundFeedback()
+    private let playback = ColoringAudioPlayback()
+    private var pendingPlayback: Task<Void, Never>?
+
+    func prepare() { enqueue { await $0.prepare() } }
+
+    func painted(added: Int, remaining: Int, interaction: PaintInteraction) {
+        if let sound = feedback.painted(added: added, remaining: remaining, interaction: interaction,
+                                        now: ProcessInfo.processInfo.systemUptime) {
+            enqueue { await $0.play(sound) }
+        }
+    }
+
+    func selected(from previous: Int, to next: Int) {
+        if let sound = feedback.selected(from: previous, to: next) {
+            enqueue { await $0.play(sound) }
+        }
+    }
+
+    func stop() {
+        feedback = ColoringSoundFeedback()
+        enqueue { await $0.stop() }
+    }
+
+    private func enqueue(_ operation: @escaping @Sendable (ColoringAudioPlayback) async -> Void) {
+        let previous = pendingPlayback
+        let playback = playback
+        // Keep mute/unmute and playback ordered even while session activation awaits.
+        pendingPlayback = Task {
+            await previous?.value
+            await operation(playback)
+        }
+    }
+}
+
+// All player and session access is confined to this background actor. Session changes,
+// decoding, and player preparation must never block the main actor or touch handling.
+private actor ColoringAudioPlayback {
     private var players: [ColoringSound: [AVAudioPlayer]] = [:]
     private var isPrepared = false
 
-    func prepare() {
+    func stop() async {
+        for player in players.values.flatMap({ $0 }) { player.stop() }
+        guard isPrepared else { return }
+        if #available(iOS 27.0, *) {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                AVAudioSession.sharedInstance().deactivate(options: .notifyOthersOnDeactivation) { _, _ in
+                    continuation.resume()
+                }
+            }
+        } else {
+            // Older systems only offer the synchronous API; this actor runs off the main actor.
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+        isPrepared = false
+    }
+
+    func prepare() async {
         guard !isPrepared else { return }
         do {
             let session = AVAudioSession.sharedInstance()
             // Optional effects respect Silent Mode and mix with the user's music.
             try session.setCategory(.ambient, mode: .default)
-            try session.setActive(true)
+            if #available(iOS 27.0, *) {
+                let activated = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+                    session.activate(options: []) { activated, error in
+                        if let error { continuation.resume(throwing: error) }
+                        else { continuation.resume(returning: activated) }
+                    }
+                }
+                guard activated else { return }
+            } else {
+                try session.setActive(true)
+            }
             if players.isEmpty {
                 var prepared: [ColoringSound: [AVAudioPlayer]] = [:]
                 for sound in ColoringSound.allCases {
@@ -65,27 +128,8 @@ final class ColoringAudio {
         }
     }
 
-    func painted(added: Int, remaining: Int, interaction: PaintInteraction) {
-        if let sound = feedback.painted(added: added, remaining: remaining, interaction: interaction,
-                                        now: ProcessInfo.processInfo.systemUptime) {
-            play(sound)
-        }
-    }
-
-    func selected(from previous: Int, to next: Int) {
-        if let sound = feedback.selected(from: previous, to: next) { play(sound) }
-    }
-
-    func stop() {
-        for player in players.values.flatMap({ $0 }) { player.stop() }
-        feedback = ColoringSoundFeedback()
-        guard isPrepared else { return }
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        isPrepared = false
-    }
-
-    private func play(_ sound: ColoringSound) {
-        prepare()
+    func play(_ sound: ColoringSound) async {
+        await prepare()
         guard isPrepared, let voices = players[sound], let player = voices.first(where: { !$0.isPlaying }) ?? voices.first else { return }
         if sound == .colorCompleted {
             for effect in [ColoringSound.pixel, .swipe] {
