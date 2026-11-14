@@ -245,6 +245,7 @@ private struct ImagePlaygroundForm: View {
             errorMessage = GeneratedSceneError.unreadableImage.localizedDescription
             return
         }
+        let scenePrompt = prompt
         converting = true
         Task {
             defer { converting = false }
@@ -252,7 +253,7 @@ private struct ImagePlaygroundForm: View {
                 let scene = try await Task.detached(priority: .userInitiated) {
                     try GeneratedScene.make(from: data)
                 }.value
-                title = ""
+                title = scene.named(scenePrompt).title
                 draft = scene
             } catch {
                 errorMessage = error.localizedDescription
