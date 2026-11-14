@@ -11,6 +11,9 @@ struct ContentView: View {
     @State private var isCreatingScene = false
     @State private var sceneToDelete: Puzzle?
     @State private var showsDeleteError = false
+    @State private var sceneToRename: Puzzle?
+    @State private var sceneTitle = ""
+    @State private var showsRenameError = false
     var body: some View {
         GeometryReader { geometry in
             NavigationSplitView {
@@ -23,6 +26,12 @@ struct ContentView: View {
                         }
                         ForEach(store.generatedPuzzles) { puzzle in
                             puzzleRow(puzzle)
+                                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                    Button { beginRenaming(puzzle) } label: {
+                                        Label("Rename", systemImage: "pencil")
+                                    }
+                                    .tint(.blue)
+                                }
                                 .swipeActions(allowsFullSwipe: false) {
                                     Button { sceneToDelete = puzzle } label: {
                                         Label("Delete", systemImage: "trash")
@@ -30,6 +39,9 @@ struct ContentView: View {
                                     .tint(.red)
                                 }
                                 .contextMenu {
+                                    Button { beginRenaming(puzzle) } label: {
+                                        Label("Rename scene", systemImage: "pencil")
+                                    }
                                     Button(role: .destructive) { sceneToDelete = puzzle } label: {
                                         Label("Delete scene", systemImage: "trash")
                                     }
@@ -82,6 +94,23 @@ struct ContentView: View {
                 selectedID = try store.addGeneratedScene(scene).id
             }
         }
+        .alert("Rename scene", isPresented: Binding(get: { sceneToRename != nil }, set: {
+            if !$0 { sceneToRename = nil }
+        }), presenting: sceneToRename) { puzzle in
+            TextField("Scene title", text: $sceneTitle)
+            Button("Save") {
+                do {
+                    try store.renameGeneratedScene(id: puzzle.id, title: sceneTitle)
+                } catch {
+                    showsRenameError = true
+                }
+            }
+            .disabled(sceneTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Couldn’t rename scene", isPresented: $showsRenameError) {
+            Button("OK", role: .cancel) {}
+        }
         .alert("Delete this scene?", isPresented: Binding(get: { sceneToDelete != nil }, set: {
             if !$0 { sceneToDelete = nil }
         }), presenting: sceneToDelete) { puzzle in
@@ -93,6 +122,11 @@ struct ContentView: View {
         .alert("Couldn’t delete scene", isPresented: $showsDeleteError) {
             Button("OK", role: .cancel) {}
         }
+    }
+
+    private func beginRenaming(_ puzzle: Puzzle) {
+        sceneTitle = puzzle.title
+        sceneToRename = puzzle
     }
 
     private func deleteScene(_ puzzle: Puzzle) {

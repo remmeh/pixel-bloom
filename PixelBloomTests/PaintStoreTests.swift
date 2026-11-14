@@ -42,6 +42,34 @@ final class PaintStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testRenamingGeneratedScenePreservesArtworkAndProgressAcrossReload() throws {
+        try withDefaults { defaults in
+            let rows = Array(repeating: String(repeating: "1", count: 64), count: 64)
+            let store = PaintStore(defaults: defaults)
+            let original = try store.addGeneratedScene(GeneratedScene(id: UUID(), title: "Created scene", rows: rows, colors: [0]))
+            let other = try store.addGeneratedScene(GeneratedScene(id: UUID(), title: "Other", rows: rows, colors: [0xFFFFFF]))
+            let progress = store.scene(for: original)
+            XCTAssertTrue(store.paint(0, color: 1, in: original))
+
+            try store.renameGeneratedScene(id: original.id, title: "  A sleepy fox  \n")
+            let renamed = try XCTUnwrap(store.generatedPuzzles.last)
+            XCTAssertEqual(renamed.title, "A sleepy fox")
+            XCTAssertEqual(renamed.id, original.id)
+            XCTAssertEqual(renamed.cells, original.cells)
+            XCTAssertEqual(renamed.palette, original.palette)
+            XCTAssertTrue(store.scene(for: renamed) === progress)
+            XCTAssertEqual(store.filled(in: renamed), [0])
+            XCTAssertTrue(store.paint(1, color: 1, in: renamed))
+            store.flushPendingSaves()
+
+            let reloaded = PaintStore(defaults: defaults)
+            XCTAssertEqual(reloaded.generatedPuzzles, [other, renamed])
+            XCTAssertEqual(reloaded.filled(in: renamed), [0, 1])
+            XCTAssertThrowsError(try store.renameGeneratedScene(id: Puzzle.all[0].id, title: "Changed"))
+        }
+    }
+
+    @MainActor
     func testDeletingGeneratedSceneRemovesItsSavedProgressOnly() throws {
         try withDefaults { defaults in
             let rows = Array(repeating: String(repeating: "1", count: 64), count: 64)

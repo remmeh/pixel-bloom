@@ -91,6 +91,21 @@ final class PaintStore: ObservableObject {
         return puzzle
     }
 
+    func renameGeneratedScene(id: String, title: String) throws {
+        guard let index = generatedScenes.firstIndex(where: { $0.puzzleID == id }),
+              let puzzleIndex = generatedPuzzles.firstIndex(where: { $0.id == id }) else {
+            throw GeneratedSceneError.invalidScene
+        }
+        let renamed = generatedScenes[index].named(title)
+        guard let puzzle = renamed.puzzle() else { throw GeneratedSceneError.invalidScene }
+        var updated = generatedScenes
+        updated[index] = renamed
+        let data = try JSONEncoder().encode(updated)
+        defaults.set(data, forKey: generatedKey)
+        generatedScenes = updated
+        generatedPuzzles[puzzleIndex] = puzzle
+    }
+
     func deleteGeneratedScene(id: String) throws {
         guard let index = generatedScenes.firstIndex(where: { $0.puzzleID == id }) else { return }
         var updated = generatedScenes
